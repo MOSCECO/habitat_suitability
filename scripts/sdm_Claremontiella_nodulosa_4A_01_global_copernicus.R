@@ -174,7 +174,7 @@ p5 <- ggplot() +
         factor(
           levels = expl.var[order(get(alg), decreasing = T)]
         ),
-      y = get(alg)
+      y = get(alg) # j'ai changé ça
     )
   ) +
   xlab("Variable environnementale") +
