@@ -1,0 +1,180 @@
+---
+title: "SDM_MOSCECO_Claremontiella_nodulosa"
+output: html_document
+date: "2023-06-08"
+---
+
+# MOSCECO Livrable II
+## Modèles de distribution d'espèces
+
+Un jeu de données environnementales a été produit à partir de données satellitaires et d'interpolations pour desles zones côtières autour de la Guadeloupe et de la Martinique. Trois approches de modèles de distribution d'espèces (MDE) ont été proposées pour mettre en relation ces données environnementales avec les données d'occurrences d'espèces des collections du Muséum : 
+- MDE avec toutes les variables environnementales après un filtre de colinéarité par VIF ;
+- MDE avec les premiers axes d'une analyse en composantes principales appliquées aux variables environnementales et ;
+- La profondeur ayant été un facteur explicatif prépondérant pour ces modèles, une troisième approche, présentée ci-dessous a consisté en la compilation des résultats de trois MDE indépendants : 
+  * Un premier (qualifié de "modèle global") calibré sur des données biologiques d'occurrences globales (siphonnées du GBIF puis nettoyées) et locales (campagne Madibenthos) et sur les données environnementales issues de la base Copernicus (Salinité issue cinq profondeurs, température du fond, trois paramètres de hauteur de vagues); 
+  * Un deuxième (qualifié de "modèle local") calibré sur les données biologiques d'occurrences locales et sur les données environnementales issues de la base Sextant (température de surface, trois variables de particules) ;
+  * Un troisième (qualifié de "modèle habitat") calibré sur les données biologiques locales et les données environnementales de bathymétrie et de pente. 
+  
+Tous les modèles ont été générés par une approcje ensembliste à l'aide du paquet biomod2 sous R. L'intégralité des algorithmes de MDE disponibles ont été utilisées et les résultats de ces modélisations ont été compilées selon la méthode de *comittee averaging* (abrégée *ca*) et de pondération par la moyenne (abrégée *wmean*).
+
+```{r boot}
+# source(here::here("scripts", "boot.R"))
+```
+
+```{r importation des données}
+# importation des résultats de modèles ----
+proj_currents <- lapply(
+  list.files(
+    here("data", "analysis", "models"), 
+    pattern = "Cla.nod"
+  ),
+  \(f) {
+    list.files(
+      here("data", "analysis", "models", f, "proj_current"),
+      pattern = "\\.tif", 
+      full.names = T
+    ) %>% rast()
+  }
+)
+names(proj_currents) <- c("copernicus", "hab", "sextant", "bsc", "pca")
+```
+
+# Masque du modèle habitat
+
+```{r fonction_masque}
+# masque ----
+seuil <- 0.937
+# threshold ----
+maskForModels <- function(r, qt, do.plot = FALSE) {
+  # Filtre selon un seuil de probabilité de présence arbitraire fixé
+  vec_r <- unlist(as.data.frame(r))
+  thresh <- quantile(vec_r, qt)
+  r_mask <- ifel(r < thresh, 0, 1)
+  
+  # Filtre bathymétrique
+  # Utilisation de la profondeur maximale de l'espèce pour filtrer les cellules
+  b <- min(terra::extract(climosaic$depth, spp[, c("x", "y")], ID = F))
+  bathy_mask <- ifel(climosaic$depth >= b, 1, 0)
+  
+  # mask_out <- r_mask
+  mask_out <- r_mask * bathy_mask
+  
+  if (do.plot) {
+    x11(); plot(mask_out) 
+  }
+  return(mask_out)
+}
+
+proj <- proj_currents$hab
+proj <- subset(proj, names(proj)[grepl("wmeanBy|caBy", names(proj))])
+
+proj_masks <- lapply(proj, maskForModels, qt = seuil, do.plot = T)
+names(proj_masks) <- c("wmean", "ca")
+
+par(mfrow = c(1, 3))
+plot(proj_masks$wmean, main = "Masque - Pondération par la moyenne (wmean)")
+plot(proj_masks$ca, main = "Masque - Comittee averaging (ca)")
+plot(proj_masks$ca - proj_masks$wmean, main = "Différence")
+```
+
+```{r graphiques_masque}
+# Isolement des cellules du masque dans les modèles sextant et copernicus
+p_masque <- lapply(
+  c("copernicus", "sextant"), 
+  \(lvl) {
+    # lvl <- "copernicus"
+    rs <- proj_currents[[lvl]]
+    mapply(
+      \(r, vn) {
+        # r <- subset(rs, names(rs)[grepl("wmeanBy|caBy", names(rs))])[[1]]
+        # vn <- "wmean"
+        
+        # Projection dans le masque
+        v <- proj_masks[[vn]]
+        rv <- r*v
+        drf <- as.data.frame(rv, xy = T)
+        names(drf)[3] <- "value"
+        p_out_1 <- ggplot(data = drf, aes(x, y, fill = value)) + 
+          geom_tile() + 
+          coord_equal() + 
+          scale_fill_gradient2(
+            low = "lightblue", mid = "orange", high = "red", midpoint = 500
+          ) + 
+          labs(title = paste(lvl, vn))
+        
+        # Distribution des valeurs de présences - densités
+        # seulement pour les zones du masque = 1
+        q <- tibble(value = as.data.frame(rv)[as.data.frame(v) == 1])
+        
+        p_out_2 <- ggplot(
+          data = q, aes(x = value, fill = "red", col = "red", alpha = 0.7)
+        ) + 
+          theme(legend.position = "none") +
+          geom_density() +
+          scale_color_manual(values = "red") +
+          scale_fill_manual(values = "#F09C9D") +
+          labs(title = paste(lvl, vn))
+        
+        # Distribution des valeurs de présences - boxplot
+        p_out_3 <- ggplot(data = q, aes(x = value)) + 
+          geom_boxplot() +
+          theme_void()
+        
+        return(list(ras = rv, map = p_out_1, den = p_out_2, box = p_out_3))
+      }, 
+      subset(rs, names(rs)[grepl("wmeanBy|caBy", names(rs))]),
+      names(proj_masks), 
+      SIMPLIFY = F, 
+      USE.NAMES = T
+    )
+  }
+)
+names(p_masque) <- c("copernicus", "sextant")
+p_masque <- lapply(p_masque, \(p) {names(p) <- c("ca", "wmean"); return(p) })
+
+```
+
+Seules les cellules correspondant aux probabilités de présence dépassant un seuil arbitraire fixé (seuil = `r seuil`) dans le modèle habitat ont été sélectionnées pour les modèles global et local. La valeur nulle a été assignée à toutes les autres cellules.
+
+```{r distribution_proba_presence}
+require(patchwork)
+
+p1 <- p_masque$copernicus$ca$den / p_masque$copernicus$ca$box  + plot_layout(heights = c(0.9, 0.1))
+p2 <- p_masque$copernicus$wmean$den / p_masque$copernicus$wmean$box  + plot_layout(heights = c(0.9, 0.1))
+p3 <- p_masque$sextant$ca$den / p_masque$sextant$ca$box  + plot_layout(heights = c(0.9, 0.1))
+p4 <- p_masque$sextant$wmean$den / p_masque$sextant$wmean$box  + plot_layout(heights = c(0.9, 0.1))
+
+p5 <- (p1 + p2) + plot_layout(ncol = 2, nrow = 2, byrow = F, widths = c(0.5, 0.5))
+p6 <- (p3 + p4) + plot_layout(ncol = 2, nrow = 2, byrow = F, widths = c(0.5, 0.5))
+p7 <- (p5 / p6)
+p7
+```
+
+```{r aggregation_modeles}
+# Aggrégation des modèles ----
+aggregationModels <- function(models, algos, fs, do_plot = F) {
+  lapply(
+    algos, 
+    \(alg) {
+      # alg <- "ca"
+      # models <- p_masque
+      l <- lapply(names(models), \(m) models[[m]][[alg]]$ras)
+      # print(l)
+      out_fs <- sapply(
+        # fs, \(f) {print(f); Reduce(eval(parse(text = f)), l)}, simplify = F, USE.NAMES = T
+        fs, \(f) {app(Reduce(c, l), f)}, simplify = F, USE.NAMES = T
+      )
+      
+      if (do_plot) {
+        lapply(names(out_fs), \(n) plot(out_fs[[n]], main = paste(alg, n)))
+      }
+      
+      return(out_fs)
+    }
+  )
+}
+
+p_aggreg <- aggregationModels(p_masque, c("ca", "wmean"), c("mean", "max"), do_plot = T)
+names(p_aggreg) <- c("ca", "wmean")
+```
+
