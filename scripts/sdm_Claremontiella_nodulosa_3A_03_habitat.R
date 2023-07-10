@@ -4,14 +4,14 @@
 
 # PARAMÉTRAGE ####
 # "ensemble" pour tous les algorithmes ou abbréviation de l'algo parmi
-# "GLM", "GBM", "GAM", "CTA", "ANN", "SRE", 
+# "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
 alg <- "ensemble"
 # Nombre de répétitions (nombre de jeux de validation croisées)
 CV_nb_rep <- 5
 
 # nom du modèle
-vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "local", "hab")
+vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "03", "local", "hab")
 pts_name_model <- paste(vec_name_model, collapse = ".")
 
 # Claremontiella nodulosa
@@ -24,70 +24,70 @@ clim_proj_sub <- clim_sub
 # Données biologiques ----
 bn <- "Claremontiella nodulosa"
 sp  <- pa[[bn]] %>% as.data.frame(xy = T)
-binnam <- str_split(bn, " ")[[1]] %>% 
-  lapply(substr, 1, 3) %>% 
+binnam <- str_split(bn, " ")[[1]] %>%
+  lapply(substr, 1, 3) %>%
   paste0(collapse = ".")
 
 # Données locales ----
 # Présences ----
-spp_local <- sp %>% 
-  filter(individualCount > 0) %>% 
-  cbind(type = "pr", id = paste0("pr", 1:nrow(.)), scale = "local") %>% 
+spp_local <- sp %>%
+  filter(individualCount > 0) %>%
+  cbind(type = "pr", id = paste0("pr", 1:nrow(.)), scale = "local") %>%
   select(type, id, scale, x, y, individualCount)
 spp_local_sf <- st_as_sf(
-  spp_local, 
+  spp_local,
   coords = c("x", "y"),
   remove = F,
   crs = "EPSG:4326"
 )
-spp_local_sf <- spp_local_sf %>% 
+spp_local_sf <- spp_local_sf %>%
   cbind(terra::extract(clim_proj_sub, spp_local_sf, ID = F))
 
 # Absences ----
-spa_local <- sp %>% 
-  filter(individualCount == 0) %>% 
-  cbind(type = "ab", id = paste0("ab", 1:nrow(.)), scale = "local") %>% 
+spa_local <- sp %>%
+  filter(individualCount == 0) %>%
+  cbind(type = "ab", id = paste0("ab", 1:nrow(.)), scale = "local") %>%
   select(type, id, scale, x, y, individualCount)
 spa_local_sf <- st_as_sf(
-  spa_local, 
+  spa_local,
   coords = c("x", "y"),
   remove = F,
   crs = "EPSG:4326"
 )
-spa_local_sf <- spa_local_sf %>% 
+spa_local_sf <- spa_local_sf %>%
   cbind(terra::extract(clim_proj_sub, spa_local_sf, ID = F))
 
 # Aggrégation données biologiques ----
 bio_list <- list(spp_local_sf, spa_local_sf)
 bio <- do.call(rbind, bio_list)
-bio <- bio %>% 
+bio <- bio %>%
   arrange(desc(individualCount), type)
 
 # Identifiant du modèle ----
 modeling_id <- gsub(
-  " ", 
-  ".", 
+  " ",
+  ".",
   paste(
-    binnam, 
-    paste(vec_name_model, collapse = " "), 
+    binnam,
+    paste(vec_name_model, collapse = " "),
     "ensemble"
   )
 )
 
 # Niche écologique observée ----
 clm <- bio %>%
-  filter(individualCount > 0) %>% 
-  select(-c(type, id, scale, individualCount)) %>% 
+  filter(individualCount > 0) %>%
+  select(-c(type, id, scale, individualCount)) %>%
   st_drop_geometry()
 neo_data <- clm %>% select(-c(x, y))
 neo_dens <- lapply(
-  names(neo_data), 
+  names(neo_data),
   \(varenv) {
-    p <- ggplot(data = neo_data, aes(x = get(varenv), col = 1, fill = 2)) + 
+    p <- ggplot(data = neo_data, aes(x = get(varenv), col = 1, fill = 2)) +
       geom_density(alpha = 0.6) +
-      scale_fill_viridis_c() + 
+      scale_fill_viridis_c() +
       scale_color_viridis_c() +
-      guides(fill = "none", col = "none") + 
+      guides(fill = "none", col = "none") +
       labs(x = varenv, y = "Densité")
   }
 )
@@ -100,30 +100,30 @@ myAlpha <- 0.5
 plot_env_bias <- lapply(
   names(neo_data),
   \(varenv) {
-    phst <- ggplot() + 
+    phst <- ggplot() +
       geom_histogram(
-        data = as.data.frame(clim_sub), 
-        aes(x = get(varenv), y = after_stat(density), fill = "Grille environnementale"), 
-        alpha = myAlpha, 
+        data = as.data.frame(clim_sub),
+        aes(x = get(varenv), y = after_stat(density), fill = "Grille environnementale"),
+        alpha = myAlpha,
         bins = 30
       ) +
       geom_histogram(
-        data = neo_data, 
-        aes(x = get(varenv), y = after_stat(density), fill = "Occurrences de l'espèce"), 
+        data = neo_data,
+        aes(x = get(varenv), y = after_stat(density), fill = "Occurrences de l'espèce"),
         alpha = myAlpha,
         bins = 30
-      ) + 
-      scale_fill_manual(values = c("green", "red")) + 
-      xlab(varenv) + 
+      ) +
+      scale_fill_manual(values = c("green", "red")) +
+      xlab(varenv) +
       ylab("Densité") +
       scale_x_continuous(
         limits = c(
           min(
-            quantile(neo_data[[varenv]], qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], qtl, na.rm = T)
-          ), 
+          ),
           max(
-            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], 1 - qtl, na.rm = T)
           )
         )
@@ -133,52 +133,52 @@ plot_env_bias <- lapply(
         text = element_text(size = 15),
         legend.position = "bottom"
       )
-    
-    pbox_env <- ggplot() + 
+
+    pbox_env <- ggplot() +
       geom_boxplot(
-        data = as.data.frame(clim_sub), 
+        data = as.data.frame(clim_sub),
         aes(x = get(varenv)),
-        fill = "green", 
-        col = "darkgreen", 
+        fill = "green",
+        col = "darkgreen",
         alpha = 0.7
       ) +
-      xlab(varenv) + 
+      xlab(varenv) +
       scale_x_continuous(
         limits = c(
           min(
-            quantile(neo_data[[varenv]], qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], qtl, na.rm = T)
-          ), 
+          ),
           max(
-            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], 1 - qtl, na.rm = T)
           )
         )
-      ) + 
+      ) +
       theme_void()
     pbox_spe <- ggplot() +
       geom_boxplot(
-        data = neo_data, 
+        data = neo_data,
         aes(x = get(varenv)),
-        fill = "red", 
+        fill = "red",
         col = "darkred",
         alpha = 0.7
       ) +
-      xlab(varenv) + 
+      xlab(varenv) +
       scale_x_continuous(
         limits = c(
           min(
-            quantile(neo_data[[varenv]], qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], qtl, na.rm = T)
-          ), 
+          ),
           max(
-            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T), 
+            quantile(neo_data[[varenv]], 1 - qtl, na.rm = T),
             quantile(as.data.frame(clim_sub)[[varenv]], 1 - qtl, na.rm = T)
           )
         )
-      ) + 
+      ) +
       theme_void()
-    
+
     pbox_spe / pbox_env / phst + plot_layout(heights = c(0.1, 0.1, 0.8))
   }
 )
@@ -187,15 +187,15 @@ names(plot_env_bias) <- names(clim_sub)
 # Formatage des données pour le modèle ----
 path_models <- here("data", "analysis", "models")
 makeMyDir(path_models)
-spec_data <- BIOMOD_FormatingData( 
+spec_data <- BIOMOD_FormatingData(
   # Données initiales
   resp.var       = bio$individualCount,
-  expl.var       = clim_sub, 
+  expl.var       = clim_sub,
   resp.xy        = st_coordinates(bio) %>%
     as_tibble() %>%  select(x = X, y = Y),
   # Modalités de sauvegarde
-  dir.name       = path_models, 
-  resp.name      = modeling_id, 
+  dir.name       = path_models,
+  resp.name      = modeling_id,
   # Gestion des occurrences multiples dans une cellule
   filter.raster  = TRUE
 )
@@ -207,17 +207,17 @@ biom_options <- BIOMOD_ModelingOptions(
   )
 )
 ensemble <- c(
-  "GLM", "GBM", "GAM", "CTA", "ANN", "SRE", 
+  "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
   "FDA", "MARS", "RF", "MAXENT", "MAXNET"
 )
 all_biomod2_algos <- switch(
   alg,
-  ensemble = ensemble, 
+  ensemble = ensemble,
   match.arg(alg, ensemble)
 )
 print(
   paste(
-    "Les algorithmes utilisés lors de cette modélisation sont :", 
+    "Les algorithmes utilisés lors de cette modélisation sont :",
     paste(all_biomod2_algos, collapse = ", ")
   )
 )
@@ -231,8 +231,8 @@ spec_models <- BIOMOD_Modeling(
   models          = all_biomod2_algos,
   CV.nb.rep       = CV_nb_rep,
   data.split.perc = 80,
-  var.import      = 3, 
-  do.full.models  = F, 
+  var.import      = 3,
+  do.full.models  = F,
   nb.cpu          = 2
 )
 
@@ -240,43 +240,43 @@ spec_models <- BIOMOD_Modeling(
 # vérifier la longueur du nom du modèle
 
 # Warning messages:
-#   1: executing %dopar% sequentially: no parallel backend registered 
-# 2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+#   1: executing %dopar% sequentially: no parallel backend registered
+# 2: glm.fit: fitted probabilities numerically 0 or 1 occurred
 # 3: glm.fit: fitted probabilities numerically 0 or 1 occurred                                                          Fitting terminated with step failure - check results carefully
 
 # sauvegarde niche écologique/biais environnemental ----
 path_neo <- here("data", "analysis", "models", modeling_id, "nicheEcoObs")
 makeMyDir(path_neo)
-file_name <- binnam %>% 
-  paste("ecological", "niche", "observed", sep = "_") %>% 
+file_name <- binnam %>%
+  paste("ecological", "niche", "observed", sep = "_") %>%
   paste0(".png")
 ggexport(
   plot = neo_grph,
-  filename = here(path_neo, file_name), 
-  width = 2000, 
-  height = 1000, 
+  filename = here(path_neo, file_name),
+  width = 2000,
+  height = 1000,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 
 path_biav <- here("data", "analysis", "models", modeling_id, "biasEnv")
 makeMyDir(path_biav)
 lapply(
-  names(plot_env_bias), 
+  names(plot_env_bias),
   \(varenv) {
-    file_name <- binnam %>% 
-      paste("environmental", "bias", varenv, sep = "_") %>% 
+    file_name <- binnam %>%
+      paste("environmental", "bias", varenv, sep = "_") %>%
       paste0(".png")
     ggexport(
       plot = plot_env_bias[[varenv]],
-      filename = here(path_biav, file_name), 
-      width = 2000, 
-      height = 1500, 
+      filename = here(path_biav, file_name),
+      width = 2000,
+      height = 1500,
       res = 200,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
   }
@@ -285,8 +285,8 @@ lapply(
 # Évaluation ----
 # get model evaluation scores
 modScores <- get_evaluations(spec_models)
-modScoresSummary <- modScores %>% 
-  group_by(algo, metric.eval) %>% 
+modScoresSummary <- modScores %>%
+  group_by(algo, metric.eval) %>%
   summarise(
     cutoff_mean = mean(cutoff),
     cutoff_stdv = sd(cutoff),
@@ -304,22 +304,22 @@ path_eval <- here(
   "data", "analysis", "models", modeling_id, "eval"
 )
 makeMyDir(path_eval)
-file_name <- gsub(" ", ".", bn) %>% 
-  paste(pts_name_model, "evaluation", "summary", sep = "_") %>% 
+file_name <- gsub(" ", ".", bn) %>%
+  paste(pts_name_model, "evaluation", "summary", sep = "_") %>%
   paste0(".csv")
 write.csv(
   modScoresSummary,
   here(path_eval, file_name),
-  row.names = F, 
+  row.names = F,
   fileEncoding = "UTF-16"
 )
 
 # Graphique des évaluations ----
 
 p1 <- bm_PlotEvalMean_gm(
-  bm.out      = spec_models, 
+  bm.out      = spec_models,
   metric.eval = c("ROC","TSS"),
-  group.by    = "algo", 
+  group.by    = "algo",
   dataset = "calibration",
   do.plot = T,
   main = NULL,
@@ -331,18 +331,18 @@ saveRDS(p1, here(path_eval, "TSSfROC_algo.rds"))
 
 ggexport(
   plot = p1$plot,
-  filename = here(path_eval, "TSSfROC_algo.png"), 
-  width = 1000, 
-  height = 800, 
+  filename = here(path_eval, "TSSfROC_algo.png"),
+  width = 1000,
+  height = 800,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 p2 <- bm_PlotEvalMean_gm(
-  bm.out      = spec_models, 
+  bm.out      = spec_models,
   metric.eval = c("ROC","TSS"),
-  group.by    = "run", 
+  group.by    = "run",
   dataset = "calibration",
   do.plot = T,
   main = NULL,
@@ -354,17 +354,17 @@ saveRDS(p2, here(path_eval, "TSSfROC_runs.rds"))
 
 ggexport(
   plot = p2$plot,
-  filename = here(path_eval, "TSSfROC_runs.png"), 
-  width = 1000, 
-  height = 800, 
+  filename = here(path_eval, "TSSfROC_runs.png"),
+  width = 1000,
+  height = 800,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 
 p3 <- bm_PlotEvalMean_gm(
-  bm.out      = spec_models, 
+  bm.out      = spec_models,
   metric.eval = c("KAPPA","TSS"),
   group.by    = "algo",
   dataset = "calibration",
@@ -376,19 +376,19 @@ saveRDS(p3, here(path_eval, "TSSfKAP_algo.rds"))
 
 ggexport(
   plot = p3$plot,
-  filename = here(path_eval, "TSSfKAP_algo.png"), 
-  width = 1000, 
-  height = 800, 
+  filename = here(path_eval, "TSSfKAP_algo.png"),
+  width = 1000,
+  height = 800,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 
 p4 <- bm_PlotEvalMean_gm(
-  bm.out      = spec_models, 
+  bm.out      = spec_models,
   metric.eval = c("KAPPA","TSS"),
-  group.by    = "run", 
+  group.by    = "run",
   dataset = "calibration",
   main = NULL,
   ylim = c(0, 1),
@@ -398,12 +398,12 @@ saveRDS(p4, here(path_eval, "TSSfKAP_runs.rds"))
 
 ggexport(
   plot = p4$plot,
-  filename = here(path_eval, "TSSfKAP_runs.png"), 
-  width = 1000, 
-  height = 800, 
+  filename = here(path_eval, "TSSfKAP_runs.png"),
+  width = 1000,
+  height = 800,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 
@@ -411,44 +411,44 @@ ggexport(
 
 # calculate the mean of variable importance by algorithm
 var_importance <- dcast(
-  spec_models_var_import, 
-  expl.var ~ algo, 
-  fun.aggregate = mean, 
+  spec_models_var_import,
+  expl.var ~ algo,
+  fun.aggregate = mean,
   value.var = "var.imp"
 )
 vmean <- (apply(var_importance[, -1], 1, mean) %>% round(3))*100
 vstdv <- (apply(var_importance[, -1], 1, sd) %>% round(3))*100
 vstde <- ((apply(var_importance[, -1], 1, sd)/sqrt(10)) %>% round(3))*100
 vmesd <- paste(
-  (apply(var_importance[, -1], 1, mean) %>% round(3))*100, 
-  "\u00b1", 
+  (apply(var_importance[, -1], 1, mean) %>% round(3))*100,
+  "\u00b1",
   (apply(var_importance[, -1], 1, sd) %>% round(3))*100
 )
 var_importance$mean <- vmean
 var_importance$stdv <- vstdv
 var_importance$stde <- vstde
 var_importance$`mean+/-se` <- vmesd
-var_importance %>% 
-  select(expl.var, mean) %>% 
-  group_by(mean) %>% 
+var_importance %>%
+  select(expl.var, mean) %>%
+  group_by(mean) %>%
   arrange(.by_group = T)
 # var_importance[, 2:(ncol(var_importance)-1)] <- round(
-#   var_importance[, 2:(ncol(var_importance)-1)]*100, 
+#   var_importance[, 2:(ncol(var_importance)-1)]*100,
 #   2
 # )
-file_name <- gsub(" ", ".", bn) %>% 
-  paste(pts_name_model, "variables", "importance", sep = "_") %>% 
+file_name <- gsub(" ", ".", bn) %>%
+  paste(pts_name_model, "variables", "importance", sep = "_") %>%
   paste0(".csv")
 write.csv(
   var_importance,
   here(path_eval, file_name),
-  row.names = F, 
+  row.names = F,
   fileEncoding = "UTF-16"
 )
 
 p5 <- ggplot() +
   geom_col(
-    data = var_importance, 
+    data = var_importance,
     aes(
       x = expl.var %>%
         factor(
@@ -456,18 +456,18 @@ p5 <- ggplot() +
         ),
       y = mean
     )
-  ) + 
+  ) +
   xlab("Variable environnementale") +
   ylab("Contribution (%)")
 
 ggexport(
   plot = p5,
-  filename = here(path_eval, "contributions_variables.png"), 
-  width = 1000, 
-  height = 800, 
+  filename = here(path_eval, "contributions_variables.png"),
+  width = 1000,
+  height = 800,
   res = 200,
   units = "px",
-  device = "png", 
+  device = "png",
   limitsize = F
 )
 
@@ -475,25 +475,25 @@ ggexport(
 # Models response curves
 # To do this we first have to load the produced models.
 lapply(
-  all_biomod2_algos, 
+  all_biomod2_algos,
   \(my_algo) {
     glm_eval_strip <- biomod2::bm_PlotResponseCurves(
       bm.out           = spec_models,
-      models.chosen    = BIOMOD_LoadModels(spec_models, algo = my_algo), 
+      models.chosen    = BIOMOD_LoadModels(spec_models, algo = my_algo),
       fixed.var        = "median",
-      main             = my_algo, 
+      main             = my_algo,
       do.plot          = F
     )
-    pout <- glm_eval_strip$plot + 
+    pout <- glm_eval_strip$plot +
       guides(col = "none")
     ggexport(
       plot = pout,
-      filename = here(path_eval, paste0("response_curves", my_algo, ".png")), 
+      filename = here(path_eval, paste0("response_curves", my_algo, ".png")),
       width = 1000,
-      height = 800, 
+      height = 800,
       res = 100,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
   }
@@ -504,7 +504,7 @@ all_ensemble_algos <- c("EMcv", "EMca","EMwmean")
 names(all_ensemble_algos) <- all_ensemble_algos
 spec_ensemble_models <- BIOMOD_EnsembleModeling(
   bm.mod               = spec_models,
-  em.by                = "all", 
+  em.by                = "all",
   em.algo              = all_ensemble_algos,
   metric.select        = "TSS"
 )
@@ -516,8 +516,8 @@ ensemble_scores_names <- c(
 # ensemble scores ----
 EMscores <- all_ensemble_algos %>% lapply(
   \(a) {
-    spec_ensemble_models_scores %>% 
-      filter(algo == a) %>% 
+    spec_ensemble_models_scores %>%
+      filter(algo == a) %>%
       select(all_of(ensemble_scores_names))
   }
 )
@@ -526,7 +526,7 @@ thlds[which(thlds == -Inf)] <- NA
 
 # ensemble response curve ----
 lapply(
-  all_ensemble_algos, 
+  all_ensemble_algos,
   \(my_algo) {
     mod_eval_strip <- biomod2::bm_PlotResponseCurves(
       bm.out           = spec_ensemble_models,
@@ -534,34 +534,34 @@ lapply(
         spec_ensemble_models, algo = my_algo
       ),
       fixed.var        = "median",
-      main             = my_algo, 
+      main             = my_algo,
       do.plot          = F
     )
-    pout <- mod_eval_strip$plot + 
+    pout <- mod_eval_strip$plot +
       guides(col = "none")
     ggexport(
       plot = pout,
       filename = here(
-        path_eval, paste0("response_curves_ensemble", my_algo, ".png")), 
+        path_eval, paste0("response_curves_ensemble", my_algo, ".png")),
       width = 1000,
-      height = 800, 
+      height = 800,
       res = 100,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
   }
 )
 
 ### Current projections ####
-spec_models_proj_current <- BIOMOD_Projection( 
+spec_models_proj_current <- BIOMOD_Projection(
   bm.mod          = spec_models,
   # new.env         = clim_sub, # mondial
   new.env         = clim_proj_sub, # local
   proj.name       = "current",
   metric.binary   = "TSS",
   output.format   = ".img",
-  do.stack        = FALSE 
+  do.stack        = FALSE
 )
 
 spec_ensemble_models_proj_current <- BIOMOD_EnsembleForecasting(
@@ -576,7 +576,7 @@ spec_ensemble_models_proj_current <- BIOMOD_EnsembleForecasting(
 # [rast] CRS do not match
 # n'affecte pas la sortie
 # terra::crs(clim_sub, proj = TRUE)
-# terra::crs(get_predictions(spec_ensemble_models_proj_current), 
+# terra::crs(get_predictions(spec_ensemble_models_proj_current),
 #            proj = TRUE)
 
 # Visualisation ----
@@ -596,79 +596,79 @@ spec_pjs_plots <- mapply(
     # col_optn <- "E"
     sr <- spec_proj_current_spatRast[[EMalg]]
     ps <- lapply(
-      islands, 
+      islands,
       \(nisl) {
         # nisl <- "GLP"
-        
+
         # chargement des éléments du graphe
         isl          <- maps[[nisl]]
         e            <- ext(climatologies[[nisl]])
-        sr_crop      <- terra::crop(sr, e) 
+        sr_crop      <- terra::crop(sr, e)
         tb           <- as.data.frame(sr_crop, xy = T)
         names(tb)[3] <- "value"
         occ <- spp_sf %>% st_crop(as.vector(e)[c(1,3,2,4)])
-        
+
         # figures ggplot2
-        p <- ggplot() + 
-          geom_tile(data = tb, aes(x = x, y = y, fill = value)) + 
-          geom_sf(data = isl) + 
-          scale_fill_viridis_c(option = col_optn) + 
-          labs(x = "Longitude", y = "Latitude") + 
+        p <- ggplot() +
+          geom_tile(data = tb, aes(x = x, y = y, fill = value)) +
+          geom_sf(data = isl) +
+          scale_fill_viridis_c(option = col_optn) +
+          labs(x = "Longitude", y = "Latitude") +
           guides(fill = guide_colorbar("Probabilité\nd'occurrence"))
-        pocc <- p + 
+        pocc <- p +
           geom_sf(data = occ, col = "red", shape = "+", size = 5)
-        
+
         # nom des fichiers de sauvegarde
-        file_name <- modeling_id %>% 
+        file_name <- modeling_id %>%
           paste(nisl, EMalg, "probability", "occurrence", "map", sep = "_") %>%
           paste0(".png")
-        file_name_occ <- modeling_id %>% 
+        file_name_occ <- modeling_id %>%
           paste(
             nisl, EMalg, "probability", "occurrence", "map", "occ", sep = "_"
           ) %>%
           paste0(".png")
-        
+
         # sauvegarde
         ggexport(
           plot = p,
           filename = here(path_figEM, file_name),
           width = 1000,
-          height = 800, 
+          height = 800,
           res = 100,
           units = "px",
-          device = "png", 
+          device = "png",
           limitsize = F
         )
         ggexport(
           plot = pocc,
           filename = here(path_figEM, file_name_occ),
           width = 1000,
-          height = 800, 
+          height = 800,
           res = 100,
           units = "px",
-          device = "png", 
+          device = "png",
           limitsize = F
         )
-        
+
         # préparation de la seconde carte sans certains éléments graphiques
         p <- if(nisl == "MTQ") {
-          p + 
+          p +
             theme(
-              axis.title.y = element_blank(), 
-              axis.line.y  = element_blank(), 
-              axis.text.y  = element_blank(), 
+              axis.title.y = element_blank(),
+              axis.line.y  = element_blank(),
+              axis.text.y  = element_blank(),
               axis.ticks.y = element_blank()
             )
         } else {
           p + theme(legend.position = "none")
         }
-        
+
         pocc <- if(nisl == "MTQ") {
-          pocc + 
+          pocc +
             theme(
-              axis.title.y = element_blank(), 
-              axis.line.y  = element_blank(), 
-              axis.text.y  = element_blank(), 
+              axis.title.y = element_blank(),
+              axis.line.y  = element_blank(),
+              axis.text.y  = element_blank(),
               axis.ticks.y = element_blank()
             )
         } else {
@@ -677,45 +677,45 @@ spec_pjs_plots <- mapply(
         return(list(nocc = p, pocc = pocc))
       }
     )
-    
+
     P    <- Reduce(`+`, ps %>% lapply(pluck, 1))
     Pocc <- Reduce(`+`, ps %>% lapply(pluck, 2))
-    
-    file_name <- modeling_id %>% 
+
+    file_name <- modeling_id %>%
       paste("ANT", EMalg, "probability", "occurrence", "map", sep = "_") %>%
       paste0(".png")
-    file_name_occ <- modeling_id %>% 
+    file_name_occ <- modeling_id %>%
       paste(
         "ANT", EMalg, "probability", "occurrence", "map", "occ", sep = "_"
       ) %>%
       paste0(".png")
-    
+
     ggexport(
       plot = P,
       filename = here(path_figEM, file_name),
       width = 4200,
-      height = 2000, 
+      height = 2000,
       res = 200,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
     ggexport(
       plot = Pocc,
       filename = here(path_figEM, file_name_occ),
       width = 4200,
-      height = 2000, 
+      height = 2000,
       res = 200,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
-    
+
     return(P)
   },
   names(spec_proj_current_spatRast),
   c("E", "C", "D"),
-  SIMPLIFY = F, 
+  SIMPLIFY = F,
   USE.NAMES = T
 )
 
@@ -726,126 +726,126 @@ spec_inc_plots <- mapply(
     # thld    <- 894
     sr <- spec_proj_current_spatRast[[EMalg]]
     ps <- lapply(
-      islands, 
+      islands,
       \(nisl) {
-        
+
         # chargement des éléments du graphe
         isl          <- maps[[nisl]]
         e            <- ext(climatologies[[nisl]])
-        sr_crop      <- terra::crop(sr, e) 
+        sr_crop      <- terra::crop(sr, e)
         tb           <- as.data.frame(sr_crop, xy = T)
         names(tb)[3] <- "value"
-        occ <- bio %>% 
-          filter(individualCount > 0) %>% 
+        occ <- bio %>%
+          filter(individualCount > 0) %>%
           st_crop(as.vector(e)[c(1,3,2,4)])
-        
+
         # figures ggplot2
-        p <- ggplot() + 
-          geom_tile(data = tb, aes(x = x, y = y, fill = value >= thld)) + 
+        p <- ggplot() +
+          geom_tile(data = tb, aes(x = x, y = y, fill = value >= thld)) +
           geom_sf(data = isl) +
           scale_fill_manual(
             values = c("lightblue", "darkgreen"),
             labels = c("Absence", "Présence")
-          ) + 
-          labs(x = "Longitude", y = "Latitude") + 
+          ) +
+          labs(x = "Longitude", y = "Latitude") +
           guides(fill = guide_legend(paste0("Seuil = ", thld)))
-        pocc <- p + 
+        pocc <- p +
           geom_sf(data = occ, col = "red", shape = "+", size = 5)
-        
+
         # noms des fichiers de sauvegarde
-        file_name <- modeling_id %>% 
+        file_name <- modeling_id %>%
           paste(nisl, EMalg, "incidence", "map", sep = "_") %>%
           paste0(".png")
-        file_name_occ <- modeling_id %>% 
+        file_name_occ <- modeling_id %>%
           paste(nisl, EMalg, "incidence", "map", "occ", sep = "_") %>%
           paste0(".png")
-        
+
         # sauvegarde
         ggexport(
           plot = p,
           filename = here(path_figEM, file_name),
           width = 1000,
-          height = 800, 
+          height = 800,
           res = 100,
           units = "px",
-          device = "png", 
+          device = "png",
           limitsize = F
         )
         ggexport(
           plot = pocc,
           filename = here(path_figEM, file_name_occ),
           width = 1000,
-          height = 800, 
+          height = 800,
           res = 100,
           units = "px",
-          device = "png", 
+          device = "png",
           limitsize = F
         )
-        
+
         # préparation de la seconde carte sans certains éléments graphiques
         p <- if(nisl == "MTQ") {
-          p + 
+          p +
             theme(
-              axis.title.y = element_blank(), 
-              axis.line.y  = element_blank(), 
-              axis.text.y  = element_blank(), 
+              axis.title.y = element_blank(),
+              axis.line.y  = element_blank(),
+              axis.text.y  = element_blank(),
               axis.ticks.y = element_blank()
             )
         } else {
           p + theme(legend.position = "none")
         }
-        
+
         pocc <- if(nisl == "MTQ") {
-          pocc + 
+          pocc +
             theme(
-              axis.title.y = element_blank(), 
-              axis.line.y  = element_blank(), 
-              axis.text.y  = element_blank(), 
+              axis.title.y = element_blank(),
+              axis.line.y  = element_blank(),
+              axis.text.y  = element_blank(),
               axis.ticks.y = element_blank()
             )
         } else {
           pocc + theme(legend.position = "none")
         }
-        
+
         return(list(nocc = p, pocc = pocc))
       }
     )
-    
+
     P    <- Reduce(`+`, ps %>% lapply(pluck, 1))
     Pocc <- Reduce(`+`, ps %>% lapply(pluck, 2))
-    
-    file_name <- modeling_id %>% 
+
+    file_name <- modeling_id %>%
       paste("ANT", EMalg, "incidence", "map", sep = "_") %>%
       paste0(".png")
-    file_name_occ <- modeling_id %>% 
+    file_name_occ <- modeling_id %>%
       paste("ANT", EMalg, "incidence", "map", "occ", sep = "_") %>%
       paste0(".png")
-    
+
     ggexport(
       plot = P,
       filename = here(path_figEM, file_name),
       width = 4200,
-      height = 2000, 
+      height = 2000,
       res = 200,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
     ggexport(
       plot = Pocc,
       filename = here(path_figEM, file_name_occ),
       width = 4200,
-      height = 2000, 
+      height = 2000,
       res = 200,
       units = "px",
-      device = "png", 
+      device = "png",
       limitsize = F
     )
-    
+
     return(P)
   },
   names(spec_proj_current_spatRast)[-1],
   thlds[-1],
-  SIMPLIFY = F, 
+  SIMPLIFY = F,
   USE.NAMES = T
 )

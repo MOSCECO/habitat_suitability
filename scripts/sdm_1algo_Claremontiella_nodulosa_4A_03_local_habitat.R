@@ -1,25 +1,24 @@
-# HABITAT SUITABILITY MODEL
-# One Species
-# MOSCECO - Biodiversité benthique de Martinique et de Guadeloupe
+################################################################################
+#### MODÈLE LOCAL - DONNÉES HABITAT                                         ####
+################################################################################
 
 # PARAMÉTRAGE ####
-# "ensemble" pour tous les algorithmes ou abbréviation de l'algo parmi
 # "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
-alg <- "ensemble"
+alg <- "MAXENT"
 # Nombre de répétitions (nombre de jeux de validation croisées)
 CV_nb_rep <- 5
 
 # nom du modèle
-vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "01", "global", "cpc")
+vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "03", "local", "hab")
 pts_name_model <- paste(vec_name_model, collapse = ".")
 
 # Claremontiella nodulosa
 
 # jeux de données environnementales pour calibration du SDM ----
 # carte globale des variables environnementales
-clim_sub      <- cgc_sub
-clim_proj_sub <- subset(climosaic, names(clim_sub))
+clim_sub      <- hab_sub
+clim_proj_sub <- clim_sub
 
 # Données biologiques ----
 bn <- "Claremontiella nodulosa"
@@ -57,42 +56,8 @@ spa_local_sf <- st_as_sf(
 spa_local_sf <- spa_local_sf %>%
   cbind(terra::extract(clim_proj_sub, spa_local_sf, ID = F))
 
-# Données mondiales ----
-# Présences ----
-pas <- nrow(spp_local_sf) + 1
-spp_global_sf <- cgc_clanod_f %>%
-  cbind(st_coordinates(cgc_clanod_f)) %>%
-  cbind(
-    type = "pr",
-    id = paste0("pr", pas:(pas + nrow(cgc_clanod_f) - 1)),
-    scale = "global",
-    individualCount = 1
-  ) %>%
-  select(
-    type, id, scale, x = X, y = Y, individualCount, all_of(names(clim_sub))
-  )
-
-# Pseudo-absences ----
-pa_set <- bm_PseudoAbsences(
-  resp.var    = rep(1, nrow(spp_global_sf)),
-  expl.var    = clim_sub,
-  nb.absences = nrow(spp_global_sf)
-)
-spa_global_sf <- cbind(
-  type = "pa", id = row.names(pa_set$xy), scale = "global",
-  pa_set$xy, individualCount = 0, pa_set$env
-) %>%
-  filter(grepl("pa", .$id)) %>%
-  as_tibble() %>%
-  st_as_sf(
-    .,
-    coords = c("x", "y"),
-    remove = F,
-    crs = "EPSG:4326"
-  )
-
 # Aggrégation données biologiques ----
-bio_list <- list(spp_local_sf, spa_local_sf, spp_global_sf, spa_global_sf)
+bio_list <- list(spp_local_sf, spa_local_sf)
 bio <- do.call(rbind, bio_list)
 bio <- bio %>%
   arrange(desc(individualCount), type)
@@ -103,8 +68,7 @@ modeling_id <- gsub(
   ".",
   paste(
     binnam,
-    paste(vec_name_model, collapse = " "),
-    "ensemble"
+    paste(vec_name_model, collapse = " ")
   )
 )
 
@@ -224,16 +188,12 @@ makeMyDir(path_models)
 spec_data <- BIOMOD_FormatingData(
   # Données initiales
   resp.var       = bio$individualCount,
-  expl.var       = bio %>% st_drop_geometry() %>%
-    select(-c(type, id, scale, x, y, individualCount)),
+  expl.var       = clim_sub,
   resp.xy        = st_coordinates(bio) %>%
     as_tibble() %>%  select(x = X, y = Y),
   # Modalités de sauvegarde
   dir.name       = path_models,
   resp.name      = modeling_id,
-  # Génération des pseudo-absences
-  PA.strategy    = "user.defined",
-  PA.user.table  = rep(TRUE, nrow(bio)) %>% as.matrix(),
   # Gestion des occurrences multiples dans une cellule
   filter.raster  = TRUE
 )
@@ -320,14 +280,30 @@ lapply(
   }
 )
 
-{
-
-}
 # Évaluation ----
+
+# fichier d'accueil
+path_eval <- here(
+  "data", "analysis", "models", modeling_id, "eval"
+)
+makeMyDir(path_eval)
+
 # get model evaluation scores
 modScores <- get_evaluations(spec_models)
-modScoresSummary <- modScores %>%
-  group_by(algo, metric.eval) %>%
+# sauvegarde
+file_name <- gsub(" ", ".", bn) %>%
+  paste(pts_name_model, "evaluations", sep = "_") %>%
+  paste0(".csv")
+write.csv(
+  modScores,
+  here(path_eval, file_name),
+  row.names = F,
+  fileEncoding = "UTF-16"
+)
+
+modScoresSummary01 <- modScores %>%
+  filter(run != "allRun") %>%
+  group_by(metric.eval) %>%
   summarise(
     cutoff_mean = mean(cutoff),
     cutoff_stdv = sd(cutoff),
@@ -340,28 +316,29 @@ modScoresSummary <- modScores %>%
     validation_mean = mean(validation),
     validation_stdv = sd(validation)
   )
-
-path_eval <- here(
-  "data", "analysis", "models", modeling_id, "eval"
-)
-makeMyDir(path_eval)
+# sauvegarde
 file_name <- gsub(" ", ".", bn) %>%
   paste(pts_name_model, "evaluation", "summary", sep = "_") %>%
   paste0(".csv")
 write.csv(
-  modScoresSummary,
+  modScoresSummary01,
+  here(path_eval, file_name),
+  row.names = F,
+  fileEncoding = "UTF-16"
+)
+# attention : moyenne des runs != indices calculés sur tous les runs
+modScoresSummary02 <- modScores %>%
+  filter(run == "allRun")
+file_name <- gsub(" ", ".", bn) %>%
+  paste(pts_name_model, "evaluation", "allRun", sep = "_") %>%
+  paste0(".csv")
+write.csv(
+  modScoresSummary02,
   here(path_eval, file_name),
   row.names = F,
   fileEncoding = "UTF-16"
 )
 
-# Graphique des évaluations ----
-# regarder dans spec_models si les valeurs sont vraiment pas bonnes
-# ou si c'est la fontion de biomod
-# tester les extrapolations dans la zone locale avec le multivariate enveloppe
-# ...
-# courbes de réponses, changements abrupts = overfitting (eg rf)
-# mess néggatif = NA dans la projection ou tester différents seuils
 # Graphique des évaluations ----
 
 p1 <- bm_PlotEvalMean_gm(
@@ -464,45 +441,25 @@ var_importance <- dcast(
   fun.aggregate = mean,
   value.var = "var.imp"
 )
-vmean <- (apply(var_importance[, -1], 1, mean) %>% round(3))*100
-vstdv <- (apply(var_importance[, -1], 1, sd) %>% round(3))*100
-vstde <- ((apply(var_importance[, -1], 1, sd)/sqrt(10)) %>% round(3))*100
-vmesd <- paste(
-  (apply(var_importance[, -1], 1, mean) %>% round(3))*100,
-  "\u00b1",
-  (apply(var_importance[, -1], 1, sd) %>% round(3))*100
-)
-var_importance$mean <- vmean
-var_importance$stdv <- vstdv
-var_importance$stde <- vstde
-var_importance$`mean+/-se` <- vmesd
-var_importance %>%
-  select(expl.var, mean) %>%
-  group_by(mean) %>%
-  arrange(.by_group = T)
-# var_importance[, 2:(ncol(var_importance)-1)] <- round(
-#   var_importance[, 2:(ncol(var_importance)-1)]*100,
-#   2
-# )
-file_name <- gsub(" ", ".", bn) %>%
-  paste(pts_name_model, "variables", "importance", sep = "_") %>%
-  paste0(".csv")
-write.csv(
-  var_importance,
-  here(path_eval, file_name),
-  row.names = F,
-  fileEncoding = "UTF-16"
-)
 
+# calculate the mean of variable importance by algorithm
+(spec_models_var_import <- get_variables_importance(spec_models))
+
+var_importance <- dcast(
+  spec_models_var_import,
+  expl.var ~ algo,
+  fun.aggregate = mean,
+  value.var = "var.imp"
+)
 p5 <- ggplot() +
   geom_col(
     data = var_importance,
     aes(
       x = expl.var %>%
         factor(
-          levels = expl.var[order(mean,decreasing = T)]
+          levels = expl.var[order(get(alg), decreasing = T)]
         ),
-      y = mean
+      y = get(alg)
     )
   ) +
   xlab("Variable environnementale") +
