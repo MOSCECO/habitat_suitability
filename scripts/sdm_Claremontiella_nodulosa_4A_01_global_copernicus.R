@@ -185,6 +185,7 @@ path_eval <- here(
 )
 makeMyDir(path_eval)
 
+# Sauvegarde de p5
 ggexport(
   plot = p5,
   filename = here(path_eval, "contributions_variables.png"),
