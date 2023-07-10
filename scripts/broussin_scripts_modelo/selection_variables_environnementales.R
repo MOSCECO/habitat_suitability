@@ -1,0 +1,1 @@
+# Sélection des variables environnementales qui ne covarient pas

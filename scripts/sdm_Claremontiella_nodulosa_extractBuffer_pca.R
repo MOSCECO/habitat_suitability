@@ -1,0 +1,656 @@
+# HABITAT SUITABILITY MODEL
+# One Species
+# MOSCECO - Biodiversité benthique de Martinique et de Guadeloupe
+
+# nom du modèle
+vec_name_model <- c("rasterized", "pca", "basic")
+pts_name_model <- paste(vec_name_model, collapse = ".")
+# Claremontiella nodulosa
+
+# Données biologiques ----
+bn <- "Claremontiella nodulosa"
+sp  <- pa[[bn]]
+binnam <- str_split(bn, " ")[[1]] %>% 
+  lapply(substr, 1, 3) %>% 
+  paste0(collapse = ".")
+
+# Présences
+spp <- sp %>% 
+  filter(individualCount > 0)
+spp_sf <- st_as_sf(
+  spp, 
+  coords = c("x", "y"),
+  remove = F,
+  crs = "EPSG:4326"
+)
+# Absences
+spa <- sp %>% 
+  filter(individualCount == 0)
+spa_sf <- st_as_sf(
+  spa, 
+  coords = c("x", "y"),
+  remove = F,
+  crs = "EPSG:4326"
+)
+
+# ggplot() + 
+#   geom_raster(data = as.data.frame(climosaic_pca_resample, xy = T), aes(x, y, fill = PC1)) + 
+#   geom_sf(data = spa_sf, col = "red") + 
+#   geom_sf(data = spp_sf, col = "pink")
+
+# Données environnementales ----
+mtd <- "mean"
+climosaic_pca_resample_rast <- rasterFromXYZ(
+  as.data.frame(climosaic_pca_resample, xy = T),
+  res = res(climosaic_pca_resample),
+  crs = crs(climosaic_pca_resample) 
+)
+clm <- raster::extract(
+  climosaic_pca_resample_rast, 
+  spp_sf, 
+  buffer = 1500, 
+  fun = \(x) mean(x, na.rm = T)
+)
+
+# CRéation de la matrice bio/env
+M <- spp %>% cbind(clm)
+
+# Colinéarité ----
+# ACP = orthogonalité
+varenv_subset <- names(M)[-which(names(M) %in% c("x", "y", "individualCount"))]
+m <- M %>% select(all_of(varenv_subset))
+clim_sub <- climosaic_pca_resample
+
+spec_sub <- spp %>% rbind(spa)
+
+ggplot() + 
+  geom_point(
+    data = spec_sub, 
+    aes(x = x, y = y, col = individualCount > 0)
+  ) + 
+  geom_sf(data = maps$GLP) + 
+  geom_sf(data = maps$MTQ)
+
+# Discriminate species presences from the entire 
+# Martinique environmental space.
+allEnv <- terra::extract(
+  climosaic_pca_resample_rast, 
+  do.call(rbind, stations) %>% 
+    filter(survey != "KARUBENTHOS 2") %>% 
+    filter(!duplicated(paste(.$decimalLongitude, .$decimalLatitude))),
+  buffer = 1500, 
+  fun = mean
+)
+res <- dudi.pca(allEnv, scannf = F)
+
+climosaic <- subset(climosaic_pca_resample_rast, 1) %>% 
+  as.data.frame() %>% 
+  na.omit()
+spe_env <- cellFromXY(
+  subset(climosaic_pca_resample_rast, 1),
+  do.call(rbind, stations) %>% 
+    filter(survey != "KARUBENTHOS 2") %>% 
+    select(decimalLongitude, decimalLatitude) %>% 
+    filter(!duplicated(.)) %>% 
+    st_drop_geometry()
+)
+spe_cell <- cellFromXY(
+  subset(climosaic_pca_resample_rast, 1),
+  spp[, c("x", "y")] %>% 
+    filter(!duplicated(.))
+)
+
+x11()
+par(mfrow = c(1:2))
+s.class(
+  res$li[, 1:2],
+  fac = factor(
+    spe_env %in% spe_cell, 
+    levels = c("FALSE", "TRUE"), 
+    labels = c("background", binnam)
+  ), 
+  col = c("red", "blue"), 
+  csta = 0, 
+  cellipse = 2, 
+  cpoint = .3, 
+  pch = 16
+)
+mtext("(a)", side = 3, line = 3, adj = 0)
+s.corcircle(res$co, clabel = .5 )
+mtext("(b)", side = 3, line = 3, adj = 0)
+
+modeling_id <- gsub(
+  " ", 
+  ".", 
+  paste(
+    bn, 
+    paste(vec_name_model, collapse = " "), 
+    "ensemble"
+  )
+)
+
+# Formatage des données pour le modèle ----
+path_models <- here("data", "analysis", "models")
+makeMyDir(path_models)
+spec_data <- BIOMOD_FormatingData( 
+  resp.var       = spec_sub$individualCount,
+  expl.var       = clim_sub, 
+  resp.xy        = spec_sub[, c("x", "y")], 
+  dir.name       = path_models, 
+  resp.name      = modeling_id, 
+  filter.raster  = TRUE
+)
+
+# Paramétrage du modèle ----
+biom_options <- BIOMOD_ModelingOptions(
+  MAXENT = list(
+    path_to_maxent.jar = here("scripts", "maxent", "maxent.jar")
+  )
+)
+all_biomod2_algos <- c(
+  "GLM", "GBM", "GAM", "CTA", "ANN", "SRE", 
+  "FDA", "MARS", "RF", "MAXENT", "MAXNET"
+)
+# Modélisation des habitats favorables selon une méthode ensembliste ----
+spec_models <- BIOMOD_Modeling(
+  bm.options      = biom_options,
+  bm.format       = spec_data,
+  modeling.id     = modeling_id,
+  models          = all_biomod2_algos,
+  nb.rep          = 10,
+  data.split.perc = 80,
+  var.import      = 10,
+  do.full.models  = F
+)
+
+# Warning messages:
+#   1: executing %dopar% sequentially: no parallel backend registered 
+# 2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+# 3: glm.fit: fitted probabilities numerically 0 or 1 occurred                                                          Fitting terminated with step failure - check results carefully
+
+# Évaluation ----
+# get model evaluation scores
+modScores <- get_evaluations(spec_models)
+modScoresSummary <- modScores %>% 
+  group_by(algo, metric.eval) %>% 
+  summarise(
+    cutoff_mean = mean(cutoff),
+    cutoff_stdv = sd(cutoff),
+    sensitivity_mean = mean(sensitivity),
+    sensitivity_stdv = sd(sensitivity),
+    specificity_mean = mean(specificity),
+    specificity_stdv = sd(specificity),
+    calibration_mean = mean(calibration),
+    calibration_stdv = sd(calibration),
+    validation_mean = mean(validation),
+    validation_stdv = sd(validation)
+  )
+
+path_eval <- here(
+  "data", "analysis", "models", modeling_id, "eval"
+)
+makeMyDir(path_eval)
+file_name <- gsub(" ", ".", bn) %>% 
+  paste(pts_name_model, "evaluation", "summary", sep = "_") %>% 
+  paste0(".csv")
+write.csv(
+  modScoresSummary,
+  here(path_eval, file_name),
+  row.names = F, 
+  fileEncoding = "UTF-16"
+)
+
+p1 <- bm_PlotEvalMean(
+  bm.out      = spec_models, 
+  metric.eval = c("ROC","TSS"),
+  group.by    = "algo", 
+  # dataset = "validation", 
+  do.plot = T
+)
+# p11 <- bm_PlotEvalBoxplot(
+#   bm.out      = spec_models, 
+#   group.by    = c("algo", "run")
+# ) + geom_boxplot()
+ggexport(
+  plot = p1$plot,
+  filename = here(path_eval, "TSSfROC_algo.png"), 
+  width = 1000, 
+  height = 800, 
+  res = 200,
+  units = "px",
+  device = "png", 
+  limitsize = F
+)
+p2 <- bm_PlotEvalMean(
+  bm.out      = spec_models, 
+  metric.eval = c("ROC","TSS"),
+  group.by    = "run"
+)
+ggexport(
+  plot = p2$plot,
+  filename = here(path_eval, "TSSfROC_runs.png"), 
+  width = 1000, 
+  height = 800, 
+  res = 200,
+  units = "px",
+  device = "png", 
+  limitsize = F
+)
+p3 <- bm_PlotEvalMean(
+  bm.out      = spec_models, 
+  metric.eval = c("KAPPA","TSS"),
+  group.by    = "algo"
+)
+ggexport(
+  plot = p3$plot,
+  filename = here(path_eval, "TSSfKAP_algo.png"), 
+  width = 1000, 
+  height = 800, 
+  res = 200,
+  units = "px",
+  device = "png", 
+  limitsize = F
+)
+
+p4 <- bm_PlotEvalMean(
+  bm.out      = spec_models, 
+  metric.eval = c("KAPPA","TSS"),
+  group.by    = "run"
+)
+ggexport(
+  plot = p4$plot,
+  filename = here(path_eval, "TSSfKAP_runs.png"), 
+  width = 1000, 
+  height = 800, 
+  res = 200,
+  units = "px",
+  device = "png", 
+  limitsize = F
+)
+
+(spec_models_var_import <- get_variables_importance(spec_models))
+
+# calculate the mean of variable importance by algorithm
+var_importance <- dcast(
+  spec_models_var_import, 
+  expl.var ~ algo, 
+  fun.aggregate = mean, 
+  value.var = "var.imp"
+)
+vmean <- (apply(var_importance[, -1], 1, mean) %>% round(3))*100
+vstdv <- (apply(var_importance[, -1], 1, sd) %>% round(3))*100
+vstde <- ((apply(var_importance[, -1], 1, sd)/sqrt(10)) %>% round(3))*100
+vmesd <- paste(
+  (apply(var_importance[, -1], 1, mean) %>% round(3))*100, 
+  "\u00b1", 
+  (apply(var_importance[, -1], 1, sd) %>% round(3))*100
+)
+var_importance$mean <- vmean
+var_importance$stdv <- vstdv
+var_importance$stde <- vstde
+var_importance$`mean+/-se` <- vmesd
+var_importance %>% 
+  select(expl.var, mean) %>% 
+  group_by(mean) %>% 
+  arrange(.by_group = T)
+# var_importance[, 2:(ncol(var_importance)-1)] <- round(
+#   var_importance[, 2:(ncol(var_importance)-1)]*100, 
+#   2
+# )
+file_name <- gsub(" ", ".", bn) %>% 
+  paste(pts_name_model, "variables", "importance", sep = "_") %>% 
+  paste0(".csv")
+write.csv(
+  var_importance,
+  here(path_eval, file_name),
+  row.names = F, 
+  fileEncoding = "UTF-16"
+)
+
+p5 <- ggplot() +
+  geom_col(
+    data = var_importance, 
+    aes(
+      x = expl.var %>%
+        factor(
+          levels = expl.var[order(mean,decreasing = T)]
+        ),
+      y = mean
+    )
+  ) + 
+  xlab("Variable environnementale") +
+  ylab("Contribution (%)")
+
+ggexport(
+  plot = p5,
+  filename = here(path_eval, "contributions_variables.png"), 
+  width = 1000, 
+  height = 800, 
+  res = 200,
+  units = "px",
+  device = "png", 
+  limitsize = F
+)
+
+
+# Models response curves
+# To do this we first have to load the produced models.
+lapply(
+  all_biomod2_algos, 
+  \(my_algo) {
+    glm_eval_strip <- biomod2::bm_PlotResponseCurves(
+      bm.out           = spec_models,
+      models.chosen    = BIOMOD_LoadModels(spec_models, algo = my_algo), 
+      fixed.var        = "median",
+      main             = my_algo, 
+      do.plot          = F
+    )
+    pout <- glm_eval_strip$plot + 
+      guides(col = "none")
+    ggexport(
+      plot = pout,
+      filename = here(path_eval, paste0("response_curves", my_algo, ".png")), 
+      width = 1000,
+      height = 800, 
+      res = 100,
+      units = "px",
+      device = "png", 
+      limitsize = F
+    )
+  }
+)
+
+# Ensemble modelling
+all_ensemble_algos <- c("EMcv", "EMca","EMwmean")
+names(all_ensemble_algos) <- all_ensemble_algos
+spec_ensemble_models <- BIOMOD_EnsembleModeling(
+  bm.mod               = spec_models,
+  em.by                = "all", 
+  em.algo              = all_ensemble_algos,
+  metric.select        = "TSS"
+)
+(spec_ensemble_models_scores <- get_evaluations(spec_ensemble_models))
+ensemble_scores_names <- c(
+  "metric.eval", "cutoff", "sensitivity", "specificity", "calibration"
+)
+
+# ensemble scores ----
+EMscores <- all_ensemble_algos %>% lapply(
+  \(a) {
+    spec_ensemble_models_scores %>% 
+      filter(algo == a) %>% 
+      select(ensemble_scores_names)
+  }
+)
+thlds <- lapply(EMscores, \(tb) max(tb$cutoff, na.rm = T))
+thlds[which(thlds == -Inf)] <- NA
+
+# ensemble response curve ----
+lapply(
+  all_ensemble_algos, 
+  \(my_algo) {
+    mod_eval_strip <- biomod2::bm_PlotResponseCurves(
+      bm.out           = spec_ensemble_models,
+      models.chosen    = BIOMOD_LoadModels(
+        spec_ensemble_models, algo = my_algo
+      ),
+      fixed.var        = "median",
+      main             = my_algo, 
+      do.plot          = F
+    )
+    pout <- mod_eval_strip$plot + 
+      guides(col = "none")
+    ggexport(
+      plot = pout,
+      filename = here(
+        path_eval, paste0("response_curves_ensemble", my_algo, ".png")), 
+      width = 1000,
+      height = 800, 
+      res = 100,
+      units = "px",
+      device = "png", 
+      limitsize = F
+    )
+  }
+)
+
+### Current projections ####
+spec_models_proj_current <- BIOMOD_Projection( 
+  bm.mod          = spec_models,
+  new.env         = clim_sub,
+  proj.name       = "current",
+  metric.binary   = "TSS",
+  output.format   = ".img",
+  do.stack        = FALSE 
+)
+
+spec_ensemble_models_proj_current <- BIOMOD_EnsembleForecasting(
+  bm.em         = spec_ensemble_models,
+  # bm.proj       = spec_models_proj_current,
+  new.env       = clim_sub,
+  proj.name     = "current",
+  models.chosen = "all"
+)
+
+# Visualisation ----
+plot(spec_ensemble_models_proj_current)
+spec_proj_current_spatRast <- terra::unwrap(
+  spec_ensemble_models_proj_current@proj.out@val
+)
+# crs(spec_proj_current_spatRast) <- "epsg:4326"
+# clim <- lapply(clim, \(e) {crs(e) <- "epsg:4326"; return(e)})
+
+spec_pjs <- lapply(
+  # clim,
+  env_vars_spatRaster_resample, 
+  \(rs) return(terra::crop(spec_proj_current_spatRast, rs[["chla"]]))
+)
+
+spec_pjs_tb <- lapply(
+  islands, 
+  \(isl) {
+    sr <- spec_pjs[[isl]]
+    out <- lapply(
+      sr,
+      \(r) {
+        tb <- as_tibble(
+          crds(r) %>% 
+            cbind(terra::values(r) %>% na.omit())
+        )
+        names(tb)[3] <- "value"
+        return(tb)
+      }
+    )
+    names(out) <- names(sr) %>% 
+      str_split("_") %>% 
+      lapply(pluck, 2) %>% 
+      unlist()
+    return(out)
+  }
+) %>% 
+  transpose()
+
+epsg9122 <- wkt(spec_pjs$GLP %>% raster())
+
+path_EM <- here(
+  "data", "analysis", "models", modeling_id, "ensemble"
+)
+makeMyDir(path_EM)
+path_figEM <- here(path_EM, "figures")
+makeMyDir(path_figEM)
+
+spec_pjs_plots <- mapply(
+  \(EMalg, col_optn) {
+    tbs <- spec_pjs_tb[[EMalg]]
+    ps <- mapply(
+      \(tb, nisl) {
+        isl <- maps[[nisl]]
+        isl <- st_transform(isl, crs = epsg9122)
+        p <- ggplot() + 
+          geom_tile(
+            data = tb, 
+            aes(x = x, y = y, fill = value)
+          ) + 
+          geom_sf(data = isl) + 
+          # scale_fill_gradient(low = "#3e36c2", high = "#7abe76")
+          # scale_fill_gradient2(
+          #   low = "grey90", mid = "yellow4", high =  "green4", midpoint = 500
+          # )
+          scale_fill_viridis_c(option = col_optn) + 
+          labs(
+            x = "Longitude", y = "Latitude" 
+          ) + 
+          guides(fill = guide_colorbar("Probabilité\nd'occurrence"))
+        
+        file_name <- modeling_id %>% 
+          paste(nisl, EMalg, "probability", "occurrence", "map", sep = "_") %>%
+          paste0(".png")
+        
+        ggexport(
+          plot = p,
+          filename = here(path_figEM, file_name),
+          width = 1000,
+          height = 800, 
+          res = 100,
+          units = "px",
+          device = "png", 
+          limitsize = F
+        )
+        p <- if(nisl == "MTQ") {
+          p + 
+            theme(
+              axis.title.y = element_blank(), 
+              axis.line.y  = element_blank(), 
+              axis.text.y  = element_blank(), 
+              axis.ticks.y = element_blank()
+            )
+        } else {
+          p + theme(legend.position = "none")
+        }
+        return(p)
+      },
+      tbs, 
+      names(maps), 
+      USE.NAMES = T, 
+      SIMPLIFY = F
+    )
+    
+    P <- Reduce(`+`, ps)
+    
+    file_name <- modeling_id %>% 
+      paste("ANT", EMalg, "probability", "occurrence", "map", sep = "_") %>%
+      paste0(".png")
+    
+    ggexport(
+      plot = P,
+      filename = here(path_figEM, file_name),
+      width = 4200,
+      height = 2000, 
+      res = 200,
+      units = "px",
+      device = "png", 
+      limitsize = F
+    )
+    
+    return(P)
+  },
+  names(spec_pjs_tb),
+  c("E", "C", "D"),
+  SIMPLIFY = F, 
+  USE.NAMES = T
+)
+
+# Présences au-dessus d'un seuil déterminé ----
+spec_pjs_plots <- mapply(
+  \(EMalg, thld) {
+    tbs <- spec_pjs_tb[[EMalg]]
+    ps <- mapply(
+      \(tb, nisl) {
+        isl <- maps[[nisl]]
+        isl <- st_transform(isl, crs = epsg9122)
+        p <- ggplot() + 
+          geom_tile(data = tb, aes(x = x, y = y, fill = value >= thld)) + 
+          geom_sf(data = isl) +
+          scale_fill_manual(
+            values = c("lightblue", "darkgreen"),
+            labels = c("Absence", "Présence")
+          ) + 
+          labs(
+            x = "Longitude", y = "Latitude" 
+          ) + 
+          guides(fill = guide_legend(paste0("Seuil = ", thld)))
+        
+        file_name <- modeling_id %>% 
+          paste(nisl, EMalg, "incidence", "map", sep = "_") %>%
+          paste0(".png")
+        
+        ggexport(
+          plot = p,
+          filename = here(path_figEM, file_name),
+          width = 1000,
+          height = 800, 
+          res = 100,
+          units = "px",
+          device = "png", 
+          limitsize = F
+        )
+        p <- if(nisl == "MTQ") {
+          p + 
+            theme(
+              axis.title.y = element_blank(), 
+              axis.line.y  = element_blank(), 
+              axis.text.y  = element_blank(), 
+              axis.ticks.y = element_blank()
+            )
+        } else {
+          p + theme(legend.position = "none")
+        }
+        return(p)
+      },
+      tbs, 
+      names(maps), 
+      USE.NAMES = T, 
+      SIMPLIFY = F
+    )
+    
+    P <- Reduce(`+`, ps)
+    
+    file_name <- modeling_id %>% 
+      paste("ANT", EMalg, "incidence", "map", sep = "_") %>%
+      paste0(".png")
+    
+    ggexport(
+      plot = P,
+      filename = here(path_figEM, file_name),
+      width = 4200,
+      height = 2000, 
+      res = 200,
+      units = "px",
+      device = "png", 
+      limitsize = F
+    )
+    
+    return(P)
+  },
+  names(spec_pjs_tb)[-1],
+  thlds[-1],
+  SIMPLIFY = F, 
+  USE.NAMES = T
+)
+
+# 1: executing %dopar% sequentially: no parallel backend registered 
+# 2: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                Iteration limit reached without full convergence - check carefully
+#              3: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                             Iteration limit reached without full convergence - check carefully
+#                           4: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                                          Fitting terminated with step failure - check results carefully
+#                                        5: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                                                       Fitting terminated with step failure - check results carefully
+#                                                     6: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                                                                    Iteration limit reached without full convergence - check carefully
+#                                                                  7: In newton(lsp = lsp, X = G$X, y = G$y, Eb = G$Eb, UrS = G$UrS, L = G$L,  :
+#                                                                                 Fitting terminated with step failure - check results carefully
+#                                                                               8: In max(tb$cutoff, na.rm = T) :
+#                                                                                 no non-missing arguments to max; returning -Inf
+#                                                                               9: [rast] SRS do not match 
