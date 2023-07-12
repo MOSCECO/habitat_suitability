@@ -9,10 +9,10 @@ binomial_name <- "Claremontiella nodulosa"
 fs <- list.files(
   here("data", "analysis", "compilation"),
   full.names = T,
-  pattern = "habitat-suitability"
+  pattern = "presence-absence"
 )
 ns <- list.files(
-  here("data", "analysis", "compilation"), pattern = "habitat-suitability"
+  here("data", "analysis", "compilation"), pattern = "presence-absence"
 )
 mods <- lapply(fs, rast)
 names(mods) <- gsub("\\.tif", "", ns)
@@ -43,25 +43,29 @@ spp_local_sf <- st_as_sf(
   crs = "EPSG:4326"
 )
 
-# Densité des adéquations de l'habitat associées aux occurrences ----
-hs_extract <- lapply(
-  mods, terra::extract, spp_local_sf, method = "bilinear", xy = T
+# Valeurs modélisées associées aux occurrences ----
+df <- as.data.frame(pa$`Claremontiella nodulosa`, xy = T) %>%
+  filter(individualCount == 1) %>%
+  select(-individualCount)
+pa_extract <- lapply(
+  mods, terra::extract, df, method = "simple", xy = T
 )
+
 # Complétion des NaN
 buffer = 150
-hs_extract <- mapply(
+pa_extract <- mapply(
   \(m, tb) {
 
     # m <- mods$wmean
-    # tb <- vals_hs$wmean
+    # tb <- pa_extract$wmean
     tb_extract_sf <- tibble()
 
-    while(length(table(is.nan(tb[, 2]))) > 1) {
+    while(length(table(is.na(tb[, 2]))) > 1) {
 
       print(buffer)
 
       # sélection des valeurs non disponibles
-      tb_na <- tb %>% filter(is.nan(rf))
+      tb_na <- tb %>% filter(is.na(rf))
 
       # projection
       tb_na_sf_pts <- st_as_sf(
@@ -82,7 +86,7 @@ hs_extract <- mapply(
       tb_extract <- cbind(
         ID = tb_na_sf_plg$ID,
         terra::extract(
-          m, tb_na_sf_plg, fun = \(x) mean(x, na.rm = T), ID = F, xy = T
+          m, tb_na_sf_plg, fun = \(x) ifelse(1 %in% x, 1, 0), ID = F, xy = T
         )
       )
 
@@ -112,22 +116,22 @@ hs_extract <- mapply(
     }
 
     return(
-      list(hs_val = tb, hs_plg = tb_extract_sf[order(tb_extract_sf$ID), ])
+      list(pa_val = tb, pa_plg = tb_extract_sf[order(tb_extract_sf$ID), ])
     )
   },
   mods,
-  hs_extract,
+  pa_extract,
   SIMPLIFY = F,
   USE.NAMES = T
 )
 
-hs <- hs_extract %>% lapply(pluck, "hs_val")
+pa <- pa_extract %>% lapply(pluck, "pa_val")
 
 # Séparation des points selon leurs coordonnées géographiques
-hs <- lapply(
-  hs,
+pa <- lapply(
+  pa,
   \(tb) {
-    # tb <- hs$wmean
+    # tb <- pa$wmean
     tb_sf <- st_as_sf(tb, coords = c("x", "y"), remove = F, crs = "EPSG:4326")
 
     tb_sf_isl <- lapply(
@@ -144,22 +148,22 @@ hs <- lapply(
   }
 )
 
-# densités d'adéquation environnementale ----
-densities_hs <- sapply(
-  names(hs),
+# densités d'adéquation à l'habitat
+densities_pa <- sapply(
+  names(pa),
   \(alg) {
 
-    # alg <- names(hs)[[1]]
+    # alg <- names(pa)[[1]]
 
     alg_lab <- switch(
       alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
     )
 
     sapply(
-      names(hs[[alg]]),
+      names(pa[[alg]]),
       \(nisl) {
 
-        # nisl <- names(hs[[alg]])[[1]]
+        # nisl <- names(pa[[alg]])[[1]]
 
         isl_lab <- switch(
           nisl,
@@ -168,23 +172,47 @@ densities_hs <- sapply(
           MTQ = "Martinique"
         )
 
-        tb <- hs[[alg]][[nisl]]
+        tb <- pa[[alg]][[nisl]]
 
-        tb_long <- tb %>% pivot_longer(cols = c("ensemble", "maxent", "rf"))
+        tb0 <- tb %>%
+          pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+          st_drop_geometry(.) %>%
+          filter(value == 0) %>%
+          group_by(., name) %>%
+          summarise(., count = n()) %>%
+          cbind(model_val = "absence")
+
+        tb1 <- tb %>%
+          pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+          st_drop_geometry(.) %>%
+          filter(value == 1) %>%
+          group_by(., name) %>%
+          summarise(., count = n()) %>%
+          cbind(model_val = "presence")
+
+        tb2 <- tb1 %>% rbind(tb0)
+        tb2$model_val <- factor(tb2$model_val, ordered = T)
+
         ggplot(
-          tb_long,
-          aes(x = value, group = name, col = name, fill = name, after_stat(count))
+          tb2,
+          aes(x = name, y = count, group = name, fill = model_val)
         ) +
-          geom_density(alpha = 0.6) +
+          geom_col(col = "black", width = 0.8, position = "dodge2") +
+          geom_text(
+            aes(label = count),
+            position = position_dodge2(width = 0.8),
+            vjust = -0.7
+          ) +
+          scale_fill_manual(values = c("white", "green")) +
           guides(
-            fill = guide_legend(title = "Algorithme\nde modélisation"),
+            fill = guide_legend(title = NULL),
             col = guide_legend(title = "Algorithme\nde modélisation")
           ) +
           labs(
             title = paste0(binomial_name, " (", isl_lab, ")"),
             subtitle = paste("Algorithme de compilation :", alg_lab)
           ) +
-          xlab("Adéquation de l'habitat") +
+          xlab("Algorithme de modélisation") +
           ylab("Densité * Nombre de points")
 
       },
@@ -196,45 +224,3 @@ densities_hs <- sapply(
   simplify = F,
   USE.NAMES = T
 )
-
-# préparation des cartes ----
-# pour chaque combinaison algorithme compilation / île
-p_alg_hs <- sapply(
-  names(mods),
-  \(alg_compilation) {
-
-    alg_comp <- switch(
-      alg_compilation, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
-    )
-
-    sapply(
-      names(mods[[alg_compilation]]),
-      \(alg_modelisation) {
-
-        alg_modl <- switch(
-          alg_modelisation,
-          ensemble = "Ensemble",
-          maxent   = "Maximum d'entropie (MAXENT)",
-          rf       = "Forêt aléatoire (Random Forest)"
-        )
-
-        sr <- mods[[alg_compilation]][[alg_modelisation]]
-        p_hs <- plotComparaisonOccurrences_hs(sr, alg_comp, alg_modl)
-
-      },
-      simplify = F,
-      USE.NAMES = T
-    )
-  },
-  simplify = F,
-  USE.NAMES = T
-)
-(p_alg_hs$wmean$ensemble$ANT$pocc + p_alg_hs$wmean$maxent$ANT$pocc) /
-  (p_alg_hs$wmean$maxent$ANT$pocc + densities_hs$wmean$ANT)
-P0 <- (p_alg_hs$wmean$ensemble$MTQ$pocc +
-         p_alg_hs$wmean$maxent$MTQ$pocc +
-         p_alg_hs$wmean$rf$MTQ$pocc)
-P1 <- (guide_area() + densities_hs$wmean$MTQ + guide_area())
-x11()
-(P0 / P1) +
-  plot_layout(heights = c(0.8, 0.2))
