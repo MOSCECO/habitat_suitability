@@ -97,10 +97,46 @@ mapply(
     r_ca    <- ifel(proj_current_ca > s_ca, 1, 0)
 
     # Visualisation
-    plot(r_wmean)
-    plot(r_ca)
+    # plot(r_wmean)
+    # plot(r_ca)
 
-    # sauvegarde
+    # sauvegarde probabilité d'adéquation de l'habitat
+    path_compilation <- here("data", "analysis", "compilation")
+    makeMyDir(path_compilation)
+
+    writeRaster(
+      proj_current_wmean,
+      here(
+        path_compilation,
+        paste(
+          "habitat-suitability",
+          my_name,
+          "wmean",
+          "w" %>% paste0(paste(vec_weight, collapse = "-")),
+          sep = "_"
+        ) %>%
+          paste0(".tif")
+      ),
+      overwrite = T
+    )
+
+    writeRaster(
+      proj_current_ca,
+      here(
+        path_compilation,
+        paste(
+          "habitat-suitability",
+          my_name,
+          "ca",
+          "w" %>% paste0(paste(vec_weight, collapse = "-")),
+          sep = "_"
+        ) %>%
+          paste0(".tif")
+      ),
+      overwrite = T
+    )
+
+    # sauvegarde présence/absence
     path_compilation <- here("data", "analysis", "compilation")
     makeMyDir(path_compilation)
 
@@ -109,6 +145,7 @@ mapply(
       here(
         path_compilation,
         paste(
+          "presence-absence",
           my_name,
           "wmean",
           "s" %>% paste0(s_wmean),
@@ -125,6 +162,7 @@ mapply(
       here(
         path_compilation,
         paste(
+          "presence-absence",
           my_name,
           "ca",
           "s" %>% paste0(s_ca),
