@@ -145,7 +145,7 @@ hs <- lapply(
 )
 
 # densités d'adéquation à l'habitat
-densities <- sapply(
+densities_hs <- sapply(
   names(hs),
   \(alg) {
 
@@ -196,3 +196,57 @@ densities <- sapply(
   simplify = F,
   USE.NAMES = T
 )
+
+# proportion d'occurrences correctement décrites vs les autres
+densities_pa <- sapply(
+  names(hs),
+  \(alg) {
+
+    # alg <- names(hs)[[1]]
+
+    alg_lab <- switch(
+      alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
+    )
+
+    sapply(
+      names(hs[[alg]]),
+      \(nisl) {
+
+        # nisl <- names(hs[[alg]])[[1]]
+
+        isl_lab <- switch(
+          nisl,
+          ANT = "Guadeloupe et Martinique",
+          GLP = "Guadeloupe",
+          MTQ = "Martinique"
+        )
+
+        tb <- hs[[alg]][[nisl]]
+
+        tb_long <- tb %>% pivot_longer(cols = c("ensemble", "maxent", "rf"))
+        ggplot(
+          tb_long,
+          aes(x = value, group = name, col = name, fill = name, after_stat(count))
+        ) +
+          geom_density(alpha = 0.6) +
+          guides(
+            fill = guide_legend(title = "Algorithme\nde modélisation"),
+            col = guide_legend(title = "Algorithme\nde modélisation")
+          ) +
+          labs(
+            title = paste0(binomial_name, " (", isl_lab, ")"),
+            subtitle = paste("Algorithme de compilation :", alg_lab)
+          ) +
+          xlab("Occurr") +
+          ylab("Densité * Nombre de points")
+
+      },
+      simplify = F,
+      USE.NAMES = T
+    )
+
+  },
+  simplify = F,
+  USE.NAMES = T
+)
+
