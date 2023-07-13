@@ -36,7 +36,8 @@ plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
         xlim(bbox[c(1,3)]) +
         ylim(bbox[c(2,4)]) +
         scale_x_continuous(expand = c(0, 0)) +
-        scale_y_continuous(expand = c(0, 0))
+        scale_y_continuous(expand = c(0, 0)) +
+        theme(plot.margin = unit(rep(0.01, 4), "null"))
       pocc <- p +
         geom_sf(data = occ, col = "red", shape = "+", size = 5)
 
@@ -81,14 +82,16 @@ plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
     plot_annotation(title = title, subtitle = subtitle) &
     theme(
       plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5)
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.margin = unit(rep(0.01, 4), "pt")
     )
   Pocc <- Reduce(`+`, ps %>% lapply(pluck, 2))  +
     plot_layout(guides = "collect", ) +
     plot_annotation(title = title, subtitle = subtitle) &
     theme(
       plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5)
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.margin = unit(rep(0.01, 4), "pt")
     )
 
   return(

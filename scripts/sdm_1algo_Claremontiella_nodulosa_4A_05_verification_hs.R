@@ -184,8 +184,9 @@ densities_hs <- sapply(
             title = paste0(binomial_name, " (", isl_lab, ")"),
             subtitle = paste("Algorithme de compilation :", alg_lab)
           ) +
-          xlab("Adéquation de l'habitat") +
-          ylab("Densité * Nombre de points")
+          xlab("Adéquation environnementale") +
+          ylab("Densité * Nombre de points") +
+          theme(plot.margin = unit(rep(0.01, 4), "null"))
 
       },
       simplify = F,
@@ -229,12 +230,55 @@ p_alg_hs <- sapply(
   simplify = F,
   USE.NAMES = T
 )
-(p_alg_hs$wmean$ensemble$ANT$pocc + p_alg_hs$wmean$maxent$ANT$pocc) /
-  (p_alg_hs$wmean$maxent$ANT$pocc + densities_hs$wmean$ANT)
+
+# Essai Martinique
 P0 <- (p_alg_hs$wmean$ensemble$MTQ$pocc +
          p_alg_hs$wmean$maxent$MTQ$pocc +
          p_alg_hs$wmean$rf$MTQ$pocc)
-P1 <- (guide_area() + densities_hs$wmean$MTQ + guide_area())
+P1 <- (
+  guide_area() +
+    densities_hs$wmean$MTQ + theme(
+      plot.title    = element_blank(),
+      plot.subtitle = element_blank()
+    ) +
+    guide_area()
+) +
+  plot_layout(widths = c(0.3, 0.4, 0.3))
+
 x11()
 (P0 / P1) +
   plot_layout(heights = c(0.8, 0.2))
+
+# Essai Guadeloupe
+G0 <- (p_alg_hs$wmean$ensemble$GLP$pocc +
+         p_alg_hs$wmean$maxent$GLP$pocc +
+         p_alg_hs$wmean$rf$GLP$pocc) + theme(
+           plot.background = element_rect(fill = "transparent")
+         )
+G1 <- (
+  guide_area() +
+    densities_hs$wmean$GLP + theme(
+      plot.title    = element_blank(),
+      plot.subtitle = element_blank()
+    ) +
+    guide_area()
+) +
+  plot_layout(widths = c(0.3, 0.4, 0.3))
+
+G2 <- (G0 / G1) + plot_layout(
+  heights = c(0.8, 0.2)
+)
+
+path_fig_compilation <- here("figures", "compilation")
+makeMyDir(path_fig_compilation)
+file_name <- "compilation_glp.png"
+
+ggexport(
+  G2,
+  filename = here(path_fig_compilation, file_name),
+  width  = 5000,
+  height = 1800,
+  res    = 200
+)
+
+x11(); G2
