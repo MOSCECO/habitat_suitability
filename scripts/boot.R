@@ -2,11 +2,11 @@
 
 # libraries ----
 libs_to_call <- list(
-  
-  "ade4", 
+
+  "ade4",
   "adehabitatHS",
   "adehabitatMA",
-  "biomod2", 
+  "biomod2",
   "CENFA",
   "data.table",
   "devtools",
@@ -16,16 +16,16 @@ libs_to_call <- list(
   "FactoMineR",
   "ggnewscale",
   "ggplot2",
-  "ggpubr", 
+  "ggpubr",
   "ggthemes",
   "here",
-  "missMDA", 
-  "ncdf4", 
-  "patchwork", 
+  "missMDA",
+  "ncdf4",
+  "patchwork",
   "purrr",
-  "raster", 
+  "raster",
   "reshape2",
-  "sf", 
+  "sf",
   "sp",
   "stars",
   "stringr",
@@ -33,20 +33,20 @@ libs_to_call <- list(
   "tidync",
   "tidyverse",
   "vegan"
-  
+
 )
 
 # library calls
 lapply(libs_to_call, function(i) {
-  
+
   bool <- is.element(i, .packages(all.available = TRUE))
-  
+
   if (!bool) {
     install.packages(i, dependencies = T)
   }
-  
+
   library(i, character.only = TRUE)
-  
+
 }
 )
 
@@ -67,17 +67,17 @@ github_accounts <- list(
 
 mapply(
   function(pckg, usr) {
-    
+
     bool <- is.element(pckg, .packages(all.available = TRUE))
-    
+
     if (!bool) {
       path_url <- paste0(usr, "/", pckg)
       print(path_url)
       devtools::install_github(path_url)
     }
-    
+
     library(pckg, character.only = TRUE)
-    
+
   },
   remote_libs_to_call,
   github_accounts,
@@ -127,9 +127,9 @@ makeMyDir(path_models)
 # polygones îles ----
 maps <- list.files(
   here("data", "raw", "shp", "polygones_iles"),
-  pattern = "*.shp", 
+  pattern = "*.shp",
   full.names = T
-) %>% 
+) %>%
   lapply(st_read)
 names(maps) <- islands
 
@@ -146,7 +146,7 @@ me <- readRDS(
   here("data", "raw", "shp", "ART_masses_d-eaux", "me.rds")
 )
 
-# attribution de chaque donnée environnementale à valeur issue d'une 
+# attribution de chaque donnée environnementale à valeur issue d'une
 # climatologie
 # source(here("scripts", "climatologies_copernicus.R"))
 # source(here("scripts", "climatologies_sextant.R"))
@@ -166,7 +166,7 @@ source(here("scripts", "regroupement_climatologies.R"))
 # climatologies ----
 climatologies <- lapply(
   list.files(
-    here("data", "tidy", "climatologies_spatRaster"), 
+    here("data", "tidy", "climatologies_spatRaster"),
     full.names = T,
     pattern = "nona"
   ),
@@ -180,7 +180,7 @@ source(here("scripts", "spatRaster_hybride_salinite.R"))
 # climatologies avec salinités hybrides ----
 climatologies <- lapply(
   list.files(
-    here("data", "tidy", "climatologies_spatRaster"), 
+    here("data", "tidy", "climatologies_spatRaster"),
     full.names = T,
     pattern = "updated_so"
   ),
@@ -195,16 +195,16 @@ climosaic <- mapply(
     y <- climatologies$MTQ[[ny]]
     terra::mosaic(x, y)
   },
-  names(climatologies$GLP), 
+  names(climatologies$GLP),
   names(climatologies$MTQ),
-  SIMPLIFY = F, 
+  SIMPLIFY = F,
   USE.NAMES = T
 )
 climosaic <- Reduce(c, climosaic)
 
 # Visualisation des données
 lapply(
-  mtds, 
+  mtds,
   \(mtd) {
     vmtd <- names(climosaic)[grepl(mtd, names(climosaic))]
     x11() ; plot(climosaic[[vmtd]])
@@ -212,7 +212,7 @@ lapply(
 )
 
 # réduction de la colinéarité des données brutes : climosaic_sub
-# climatologies avec des valeurs issues d'une ACP sur toutes les variables 
+# climatologies avec des valeurs issues d'une ACP sur toutes les variables
 source(here("scripts", "climatologies_pca.R"))
 
 # espèces communes filtrées pour 30 spécimens minimum (présences/absences)
@@ -241,11 +241,11 @@ global_occf <- lapply(
   ),
   \(path) {
     d <- list.files(
-      here(path), 
+      here(path),
       pattern = ".rds",
-      full.names = T      
+      full.names = T
     ) %>% lapply(readRDS)
-    names(d) <- list.files(here(path), pattern = ".rds") %>% 
+    names(d) <- list.files(here(path), pattern = ".rds") %>%
       substr(21, nchar(.) - 4)
     return(d)
   }
@@ -265,7 +265,7 @@ global_clim <- lapply(
       list.files(p_sf, full.names = T),
       \(p_sp) {
         l_cl <- lapply(
-          list.files(p_sp, full.names = T), 
+          list.files(p_sp, full.names = T),
           read.csv
         )
         names(l_cl) <- list.files(p_sp) %>% substr(1, nchar(.) - 4)
@@ -273,7 +273,7 @@ global_clim <- lapply(
       } )
     names(l_sp) <- list.files(p_sf)
     return(l_sp)
-  } ) 
+  } )
 names(global_clim) <- list.files(here("data", "raw", "clim_global"))
 
 # association données environnementales
@@ -281,22 +281,22 @@ source(here("scripts", "global_cla_nod.R"))
 
 # Méthode pour ENFA avec climatologies sur tout le pourtour des amériques
 # copernicus global climatologies
-cgc <- here("data", "raw", "clim_cenfa_clanod", "clims.rds") %>% 
-  readRDS() %>% 
+cgc <- here("data", "raw", "clim_cenfa_clanod", "clims.rds") %>%
+  readRDS() %>%
   rast()
 cgc_clanod <- readRDS(
   here("data", "raw", "clim_cenfa_clanod", "dataset_occ_clims.rds")
 )
 
 # sextant local climatologies
-sxt_sub <- climosaic %>% 
+sxt_sub <- climosaic %>%
   terra::subset(names(.)[grepl("ssm|tur|chla|sst", names(.))])
 var_col <- usdm::vifstep(as.data.frame(sxt_sub %>% na.omit()))@excluded
 sxt_sub <- subset(sxt_sub, names(sxt_sub)[!names(sxt_sub) %in% var_col])
 
 # sextant local means climatologies
-sxt_sub_means <- climosaic %>% 
-  terra::subset(names(.)[grepl("ssm|tur|chla|sst", names(.))]) %>% 
+sxt_sub_means <- climosaic %>%
+  terra::subset(names(.)[grepl("ssm|tur|chla|sst", names(.))]) %>%
   terra::subset(names(.)[grepl("mean", names(.))])
 var_col <- usdm::vifstep(as.data.frame(sxt_sub_means %>% na.omit()))@excluded
 sxt_sub_means <- subset(
@@ -304,14 +304,14 @@ sxt_sub_means <- subset(
 )
 
 # Habitat local spatial raster
-hab_sub <-  climosaic %>% 
+hab_sub <-  climosaic %>%
   terra::subset(names(.)[grepl("depth", names(.))])
 hab_sub$slope <- terra::terrain(hab_sub)
 var_col <- usdm::vifstep(as.data.frame(hab_sub %>% na.omit()))@excluded
 hab_sub <- subset(hab_sub, names(hab_sub)[!names(hab_sub) %in% var_col])
 
 
-# Troisième approche 
+# Troisième approche
 # Modèle global projeté sur le local (donnés copernicus)
 source(here("scripts", "ENFA_global_clanod2.R"))
 # source(here("scripts", "sdm_Claremontiella_nodulosa_3A_01_global_copernicus.R"))
@@ -321,3 +321,5 @@ source(here("scripts", "ENFA_global_clanod2.R"))
 # source(here("scripts", "sdm_Claremontiella_nodulosa_3A_03_habitat.R"))
 # Repérage des zones avec un MESS négatif
 # source(here("scripts", "MESS.R"))
+
+for (i in 1:10) { dev.off() }
