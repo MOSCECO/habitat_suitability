@@ -170,24 +170,46 @@ densities_hs <- sapply(
 
         tb <- hs[[alg]][[nisl]]
 
-        tb_long <- tb %>% pivot_longer(cols = c("ensemble", "maxent", "rf"))
-        ggplot(
-          tb_long,
-          aes(x = value, group = name, col = name, fill = name, after_stat(count))
-        ) +
-          geom_density(alpha = 0.6) +
-          guides(
-            fill = guide_legend(title = "Algorithme\nde modélisation"),
-            col = guide_legend(title = "Algorithme\nde modélisation")
-          ) +
-          labs(
-            title = paste0(binomial_name, " (", isl_lab, ")"),
-            subtitle = paste("Algorithme de compilation :", alg_lab)
-          ) +
-          xlab("Adéquation environnementale") +
-          ylab("Densité * Nombre de points") +
-          theme(plot.margin = unit(rep(0.01, 4), "null"))
+        mapply(
+          \(alg_mod, alg_col) {
 
+            # alg_mod <- "ensemble"
+            # alg_col <- "red"
+
+            tb_long <- tb %>% pivot_longer(cols = c("ensemble", "maxent", "rf"))
+            tb_long <- tb_long %>% filter(name == alg_mod) %>%
+              rbind(tb_long %>% filter(name != alg_mod))
+            tb_long$col <- ifelse(tb_long$name == alg_mod, alg_col, "darkgrey")
+            tb_long$col <- factor(tb_long$col, levels = unique(tb_long$col))
+
+            ggplot(
+              tb_long,
+              aes(
+                x     = value,
+                group = name,
+                col   = col,
+                fill  = col,
+                alpha = col,
+                after_stat(count)
+              )
+            ) +
+              geom_density() +
+              scale_color_manual(values = levels(tb_long$col)) +
+              scale_fill_manual(values = levels(tb_long$col)) +
+              scale_alpha_manual(values = c(0.6, 0.2)) +
+              xlab("Adéquation environnementale") +
+              ylab("Densité * Nombre de points") +
+              theme(
+                legend.position = "none",
+                plot.margin = unit(rep(0.01, 4), "pt")
+              )
+
+          },
+          c("ensemble", "maxent", "rf"),
+          c("red", "green", "blue"),
+          SIMPLIFY = F,
+          USE.NAMES = T
+        )
       },
       simplify = F,
       USE.NAMES = T
@@ -235,15 +257,7 @@ p_alg_hs <- sapply(
 P0 <- (p_alg_hs$wmean$ensemble$MTQ$pocc +
          p_alg_hs$wmean$maxent$MTQ$pocc +
          p_alg_hs$wmean$rf$MTQ$pocc)
-P1 <- (
-  guide_area() +
-    densities_hs$wmean$MTQ + theme(
-      plot.title    = element_blank(),
-      plot.subtitle = element_blank()
-    ) +
-    guide_area()
-) +
-  plot_layout(widths = c(0.3, 0.4, 0.3))
+P1 <- Reduce(`+`, densities_hs$wmean$MTQ)
 
 x11()
 (P0 / P1) +
