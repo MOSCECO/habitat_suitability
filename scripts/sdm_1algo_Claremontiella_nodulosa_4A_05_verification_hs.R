@@ -253,15 +253,57 @@ p_alg_hs <- sapply(
   USE.NAMES = T
 )
 
-# Essai Martinique
-P0 <- (p_alg_hs$wmean$ensemble$MTQ$pocc +
-         p_alg_hs$wmean$maxent$MTQ$pocc +
-         p_alg_hs$wmean$rf$MTQ$pocc)
-P1 <- Reduce(`+`, densities_hs$wmean$MTQ)
+# génération des figures ----
+path_fig_compilation <- here("figures", "compilation")
+makeMyDir(path_fig_compilation)
 
-x11()
-(P0 / P1) +
-  plot_layout(heights = c(0.8, 0.2))
+lapply(
+  c("wmean", "ca"),
+  \(alg) {
+    mapply(
+      \(nisl) {
+        lapply(
+          c("pocc", "nocc"),
+          \(xocc) {
+
+            alg  <- "wmean"
+            nisl <- "ANT"
+            xocc <- "pocc"
+
+            alg_lab <- switch(
+              alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
+            )
+
+            file_name <- paste("compilation", "hs", alg, tolower(nisl), xocc, sep = "_") %>%
+              paste0(".png")
+
+            P_hig <- joinedMaps(
+              p_alg_hs[[alg]] %>% lapply(pluck, nisl, xocc),
+              collect_guides = T,
+              keep_title = F,
+              plot_title = alg_lab
+            )
+            P_low <- joinedMaps(densities_hs[[alg]][[nisl]])
+
+            P <- (P_hig / P_low) +
+              plot_layout(heights = c(0.8, 0.2))
+
+            ggexport(
+              P,
+              filename = here(path_fig_compilation, file_name),
+              width  = 5000,
+              height = 2250,
+              res    = 300
+            )
+
+          }
+        )
+      },
+      c("ANT", "GLP", "MTQ"),
+      c(3000, 2250, 2500)
+    )
+  }
+)
 
 # Essai Guadeloupe
 G0 <- (p_alg_hs$wmean$ensemble$GLP$pocc +
@@ -282,17 +324,3 @@ G1 <- (
 G2 <- (G0 / G1) + plot_layout(
   heights = c(0.8, 0.2)
 )
-
-path_fig_compilation <- here("figures", "compilation")
-makeMyDir(path_fig_compilation)
-file_name <- "compilation_glp.png"
-
-ggexport(
-  G2,
-  filename = here(path_fig_compilation, file_name),
-  width  = 5000,
-  height = 1800,
-  res    = 200
-)
-
-x11(); G2

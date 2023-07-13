@@ -30,7 +30,8 @@ plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
           low = "white",
           mid = "#ecb171",
           high = "#03a700",
-          midpoint = median(tb$value)
+          midpoint = 250,
+          limits = c(0, 1000)
         ) +
         labs(x = "Longitude", y = "Latitude") +
         xlim(bbox[c(1,3)]) +
