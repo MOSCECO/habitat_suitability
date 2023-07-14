@@ -1,4 +1,4 @@
-plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
+plotComparaisonOccurrences_pa <- function(sr, title, subtitle) {
   ps <- sapply(
     islands,
     \(nisl) {
@@ -24,16 +24,14 @@ plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
 
       # figures ggplot2
       p <- ggplot() +
-        geom_tile(data = tb, aes(x = x, y = y, fill = value)) +
+        geom_tile(data = tb, aes(x = x, y = y, fill = factor(value))) +
         geom_sf(data = isl) +
-        scale_fill_gradient2(
-          low = "white",
-          mid = "#ecb171",
-          high = "#03a700",
-          midpoint = 250,
-          limits = c(0, 1000)
+        scale_fill_manual(
+          values = c("white", "#03a700"),
+          labels = c("Non-adéquat", "Adéquat")
         ) +
         labs(x = "Longitude", y = "Latitude") +
+        guides(fill = guide_legend(title = "Environnement")) +
         xlim(bbox[c(1,3)]) +
         ylim(bbox[c(2,4)]) +
         scale_x_continuous(expand = c(0, 0)) +

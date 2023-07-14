@@ -261,14 +261,14 @@ lapply(
   c("wmean", "ca"),
   \(alg) {
     mapply(
-      \(nisl) {
+      \(nisl, hisl, wisl, risl) {
         lapply(
           c("pocc", "nocc"),
           \(xocc) {
 
-            alg  <- "wmean"
-            nisl <- "ANT"
-            xocc <- "pocc"
+            # alg  <- "wmean"
+            # nisl <- "ANT"
+            # xocc <- "pocc"
 
             alg_lab <- switch(
               alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
@@ -291,36 +291,20 @@ lapply(
             ggexport(
               P,
               filename = here(path_fig_compilation, file_name),
-              width  = 5000,
-              height = 2250,
-              res    = 300
+              width  = wisl,
+              height = hisl,
+              res    = risl
             )
 
           }
         )
       },
       c("ANT", "GLP", "MTQ"),
-      c(3000, 2250, 2500)
+      c( 5000,  4000,  2500), # hauteur
+      c(20000, 10000,  5000), # largeur
+      c(  800,   400,   300), # résolution
+      SIMPLIFY = F,
+      USE.NAMES = T
     )
   }
-)
-
-# Essai Guadeloupe
-G0 <- (p_alg_hs$wmean$ensemble$GLP$pocc +
-         p_alg_hs$wmean$maxent$GLP$pocc +
-         p_alg_hs$wmean$rf$GLP$pocc) + theme(
-           plot.background = element_rect(fill = "transparent")
-         )
-G1 <- (
-  guide_area() +
-    densities_hs$wmean$GLP + theme(
-      plot.title    = element_blank(),
-      plot.subtitle = element_blank()
-    ) +
-    guide_area()
-) +
-  plot_layout(widths = c(0.3, 0.4, 0.3))
-
-G2 <- (G0 / G1) + plot_layout(
-  heights = c(0.8, 0.2)
 )

@@ -44,11 +44,8 @@ spp_local_sf <- st_as_sf(
 )
 
 # Valeurs modélisées associées aux occurrences ----
-df <- as.data.frame(pa$`Claremontiella nodulosa`, xy = T) %>%
-  filter(individualCount == 1) %>%
-  select(-individualCount)
 pa_extract <- lapply(
-  mods, terra::extract, df, method = "simple", xy = T
+  mods, terra::extract, spp_local_sf, method = "simple", xy = T
 )
 
 # Complétion des NaN
@@ -148,8 +145,8 @@ pa <- lapply(
   }
 )
 
-# densités d'adéquation à l'habitat
-densities_pa <- sapply(
+# présences/absences à l'habitat
+proportions_pa <- sapply(
   names(pa),
   \(alg) {
 
@@ -174,47 +171,64 @@ densities_pa <- sapply(
 
         tb <- pa[[alg]][[nisl]]
 
-        tb0 <- tb %>%
-          pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
-          st_drop_geometry(.) %>%
-          filter(value == 0) %>%
-          group_by(., name) %>%
-          summarise(., count = n()) %>%
-          cbind(model_val = "absence")
 
-        tb1 <- tb %>%
-          pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
-          st_drop_geometry(.) %>%
-          filter(value == 1) %>%
-          group_by(., name) %>%
-          summarise(., count = n()) %>%
-          cbind(model_val = "presence")
+        mapply(
+          \(alg_mod) {
 
-        tb2 <- tb1 %>% rbind(tb0)
-        tb2$model_val <- factor(tb2$model_val, ordered = T)
+            # alg_mod <- "ensemble"
 
-        ggplot(
-          tb2,
-          aes(x = name, y = count, group = name, fill = model_val)
-        ) +
-          geom_col(col = "black", width = 0.8, position = "dodge2") +
-          geom_text(
-            aes(label = count),
-            position = position_dodge2(width = 0.8),
-            vjust = -0.7
-          ) +
-          scale_fill_manual(values = c("white", "green")) +
-          guides(
-            fill = guide_legend(title = NULL),
-            col = guide_legend(title = "Algorithme\nde modélisation")
-          ) +
-          labs(
-            title = paste0(binomial_name, " (", isl_lab, ")"),
-            subtitle = paste("Algorithme de compilation :", alg_lab)
-          ) +
-          xlab("Algorithme de modélisation") +
-          ylab("Densité * Nombre de points")
+            tb0 <- tb %>%
+              pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+              st_drop_geometry(.) %>%
+              filter(value == 0) %>%
+              group_by(., name) %>%
+              summarise(., count = n()) %>%
+              cbind(model_val = "absence")
 
+            tb1 <- tb %>%
+              pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+              st_drop_geometry(.) %>%
+              filter(value == 1) %>%
+              group_by(., name) %>%
+              summarise(., count = n()) %>%
+              cbind(model_val = "presence")
+
+            tb2 <- tb1 %>% rbind(tb0)
+            tb2$model_val <- factor(tb2$model_val, ordered = T)
+            tb3 <- tb2 %>% filter(name == alg_mod)
+
+            ggplot(
+              tb3,
+              aes(y = name, x = count, group = name, fill = model_val)
+            ) +
+              geom_col(
+                col = "black", width = 0.8, position = "dodge2", alpha = 0.8
+              ) +
+              geom_text(
+                aes(label = count),
+                position = position_dodge2(width = 0.8),
+                hjust = -0.7
+              ) +
+              scale_fill_manual(
+                values = c("white", "#03a700"),
+                labels = c("Non-adéquat", "Adéquat")
+              ) +
+              guides(
+                fill = guide_legend(title = "Environnement"),
+                col = guide_legend(title = "Algorithme\nde modélisation")
+              ) +
+              xlab("Présences correctement prédites") +
+              ylab(NULL) +
+              theme(
+                axis.text.y = element_blank(),
+                axis.ticks.y = element_blank()
+              )
+
+          },
+          c("ensemble", "maxent", "rf"),
+          SIMPLIFY = F,
+          USE.NAMES = T
+        )
       },
       simplify = F,
       USE.NAMES = T
@@ -223,4 +237,95 @@ densities_pa <- sapply(
   },
   simplify = F,
   USE.NAMES = T
+)
+
+# préparation des cartes ----
+# pour chaque combinaison algorithme compilation / île
+p_alg_pa <- sapply(
+  names(mods),
+  \(alg_compilation) {
+
+    alg_comp <- switch(
+      alg_compilation, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
+    )
+
+    sapply(
+      names(mods[[alg_compilation]]),
+      \(alg_modelisation) {
+
+        alg_modl <- switch(
+          alg_modelisation,
+          ensemble = "Ensemble",
+          maxent   = "Maximum d'entropie (MAXENT)",
+          rf       = "Forêt aléatoire (Random Forest)"
+        )
+
+        sr <- mods[[alg_compilation]][[alg_modelisation]]
+        p_pa <- plotComparaisonOccurrences_pa(sr, alg_comp, alg_modl)
+
+      },
+      simplify = F,
+      USE.NAMES = T
+    )
+  },
+  simplify = F,
+  USE.NAMES = T
+)
+
+# génération des figures ----
+path_fig_compilation <- here("figures", "compilation")
+makeMyDir(path_fig_compilation)
+
+lapply(
+  c("wmean", "ca"),
+  \(alg) {
+    mapply(
+      \(nisl, hisl, wisl, risl) {
+        lapply(
+          c("pocc", "nocc"),
+          \(xocc) {
+
+            # alg  <- "wmean"
+            # nisl <- "ANT"
+            # xocc <- "pocc"
+
+            alg_lab <- switch(
+              alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
+            )
+
+            file_name <- paste("compilation", "pa", alg, tolower(nisl), xocc, sep = "_") %>%
+              paste0(".png")
+
+            P_hig <- joinedMaps(
+              p_alg_pa[[alg]] %>% lapply(pluck, nisl, xocc),
+              collect_guides = T,
+              keep_title = F,
+              plot_title = alg_lab
+            )
+            P_low <- joinedMaps(
+              proportions_pa[[alg]][[nisl]], collect_guides = T
+            )
+
+            P <- (P_hig / P_low) +
+              plot_layout(heights = c(0.8, 0.2))
+
+            ggexport(
+              P,
+              filename = here(path_fig_compilation, file_name),
+              width  = wisl,
+              height = hisl,
+              res    = risl
+            )
+
+          }
+        )
+      },
+      c("ANT", "GLP", "MTQ"),
+      c( 5000,  4000,  2500), # hauteur
+      c(20000, 10000,  5000), # largeur
+      c(  800,   400,   300), # résolution
+      SIMPLIFY = F,
+      USE.NAMES = T
+    )
+  }
 )
