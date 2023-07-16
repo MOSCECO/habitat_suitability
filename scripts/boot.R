@@ -141,36 +141,8 @@ me <- readRDS(
   here("data", "raw", "shp", "ART_masses_d-eaux", "me.rds")
 )
 
-# attribution de chaque donnée environnementale à valeur issue d'une
-# climatologie
-# source(here("scripts", "climatologies_copernicus.R"))
-# source(here("scripts", "climatologies_sextant.R"))
-# Pendant meSU
-# source(here("scripts", "boot_meSU.R"))
-# source(here("scripts", "climatologies_copernicus_mesu.R"))
-# source(here("scripts", "climatologies_sextant_mesu.R"))
-
-# raster de salinité qui correspond aux profondeurs des zones d'études
-# source(here("scripts", "raster_hybride_salinite.R"))
-
-# regroupement des climatologies
 # mtds <- c("mean", "stdv", "mini", "maxi", "qt01", "qt05", "qt95", "qt99")
 mtds <- c("mean", "stdv")
-source(here("scripts", "regroupement_climatologies.R"))
-
-# climatologies ----
-climatologies <- lapply(
-  list.files(
-    here("data", "tidy", "climatologies_spatRaster"),
-    full.names = T,
-    pattern = "nona"
-  ),
-  rast
-)
-names(climatologies) <- islands
-
-# raster de salinité qui correspond aux profondeurs des zones d'études
-source(here("scripts", "spatRaster_hybride_salinite.R"))
 
 # climatologies avec salinités hybrides ----
 climatologies <- lapply(
@@ -305,16 +277,4 @@ hab_sub$slope <- terra::terrain(hab_sub)
 var_col <- usdm::vifstep(as.data.frame(hab_sub %>% na.omit()))@excluded
 hab_sub <- subset(hab_sub, names(hab_sub)[!names(hab_sub) %in% var_col])
 
-
-# Troisième approche
-# Modèle global projeté sur le local (donnés copernicus)
-source(here("scripts", "ENFA_global_clanod2.R"))
-# source(here("scripts", "sdm_Claremontiella_nodulosa_3A_01_global_copernicus.R"))
-# Modèle local projeté sur le local (donnés sextant)
-# source(here("scripts", "sdm_Claremontiella_nodulosa_3A_02_local_sextant.R"))
-# Modèle habitats
-# source(here("scripts", "sdm_Claremontiella_nodulosa_3A_03_habitat.R"))
-# Repérage des zones avec un MESS négatif
-# source(here("scripts", "MESS.R"))
-
-for (i in 1:10) { dev.off() }
+# for (i in 1:10) { dev.off() }
