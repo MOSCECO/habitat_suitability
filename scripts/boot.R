@@ -4,10 +4,7 @@
 libs_to_call <- list(
 
   "ade4",
-  "adehabitatHS",
-  "adehabitatMA",
   "biomod2",
-  "CENFA",
   "data.table",
   "devtools",
   "dismo",
@@ -19,8 +16,6 @@ libs_to_call <- list(
   "ggpubr",
   "ggthemes",
   "here",
-  "missMDA",
-  "ncdf4",
   "patchwork",
   "purrr",
   "raster",
