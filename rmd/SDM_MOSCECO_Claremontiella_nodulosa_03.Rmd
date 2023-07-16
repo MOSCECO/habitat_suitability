@@ -1,0 +1,57 @@
+---
+title: "SDM_MOSCECO_Claremontiella_nodulosa"
+output: html_document
+date: "2023-06-08"
+---
+
+# MOSCECO Livrable II
+## Note méthodologique
+### Modèles de distribution d'espèces
+
+Un jeu de données environnementales a été produit à partir de données satellitaires et d'interpolations pour desles zones côtières autour de la Guadeloupe et de la Martinique. Trois approches de modèles de distribution d'espèces (MDE) ont été proposées pour mettre en relation ces données environnementales avec les données d'occurrences d'espèces des collections du Muséum : 
+
+1. MDE avec toutes les variables environnementales après un filtre de colinéarité par VIF ;
+2. MDE avec les premiers axes d'une analyse en composantes principales appliquées aux variables environnementales et ;
+3. La profondeur ayant été un facteur explicatif prépondérant pour ces modèles, une troisième approche, présentée ci-dessous a consisté en la compilation des résultats de trois MDE indépendants : 
+    i. Un premier (qualifié de "modèle global") calibré sur des données biologiques d'occurrences globales (moissonnées depuis le GBIF puis nettoyées) et locales (campagne Madibenthos) et sur les données environnementales issues de la base Copernicus (salinités issues de cinq profondeurs, température du fond, trois paramètres de hauteur de vagues); 
+    ii. Un deuxième (qualifié de "modèle local") calibré sur les données biologiques d'occurrences locales et sur les données environnementales issues de la base Sextant (température de surface, trois variables de particules) ;
+    iii. Un troisième (qualifié de "modèle habitat") calibré sur les données biologiques locales et les données environnementales de bathymétrie et de pente. 
+Tous les modèles ont dans un premier temps été générés par une approche ensembliste à l'aide du paquet biomod2 sous R. L'intégralité des algorithmes de MDE disponibles ont été utilisées et les résultats de ces modélisations ont été compilées selon la méthode de *comittee averaging* (abrégée *ca*) et de pondération par la moyenne (abrégée *wmean*).
+
+Dans un second temps, nous avons généré des MDE à partir du postulat suivant : les espèces que nous étudions étant des espèces appartenant à la méso- voire la microfaune benthique, elles seront plus sensibles à la structuration de l'habitat qu'aux variables environnementales.
+
+Pour cela, nous avons généré, pour chaque niveau de la troisième approche décrite précédemment, c'est-à-dire "global", "local" et "habitat" :
+
+  - Cinq MDE avec l'algorithme de la forêt aléatoire (*Random Forest*) ;
+  - Cinq MDE avec l'algorithme de maximum d'entropie (*MAXENT*); 
+  - Cinq MDE avec tous les algorithmes disponible dans le paquet *biomod2* (méthode d'ensemble). 
+
+Pour chaque niveau (global, local, habitat) et pour chaque algorithme, les modèles de sorties ont d'abord été compilées par moyenne d'ensemble (*comittee averaging*, *ca*) puis par un algorithme de pondération par la moyenne (*wmean*). Trois MDE compilés sont alors obtenus pour chaque algorithme. 
+
+Ces trois MDE sont alors compilés par pondération par la moyenne (*wmean*) une nouvelle fois en tenant tenant en compte une hiérachie entre les niveaux (à savoir, habitat > local > global). Finalement, un modèle final est obtenu pour chaque algorithme (rf, maxent, ensemble). Ces modèles représentent l'adéquation environnementale (*habitat suitability*), parfois appelée probabilité de présence. Il s'agit d'une valeur comprise entre 0 et 1000. Plus la valeur est élevée, plus les valeurs environnementales de la cellule considérée sont représentative de la niche écologique de l'espèce telle qu'estimée par le modèle (et donc est un indicateur de la probabilité de retrouver l'espèce à cet endroit donné).
+
+Nous avons représenté, pour chaque modèle final, la distribution des valeurs d'adéquation environnementale correspondant aux observations des présences de l'espèce utilisées pour calibrer le modèle. 
+
+Les cartes de présence-absence de l'espèce ont aussi été générées en utilisant une valeur seuil d'adéquation environnementale. Ce seuil est obtenu à partir d'une métrique calculée pour plusieurs valeurs de seuil d'adéquation environnementale. La métrique (TSS) permet d'identifier le seuil pour lequel les prédictions du modèle sont les meilleurs. C'est-à-dire, le seuil est optimal est celui pour lequel le modèle prédit le mieux les observations d'entrées du modèle (à savoir les présences et les absences de l'espèce étudiée). Le nombre de prédictions correctes a été représentées sous ces cartes. 
+
+Nous présentons ici le cas de la Martinique pour l'espèce *Claremontiella nodulosa*. 
+
+```{r options_chunk, echo = FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = "hide", warning = FALSE, message = FALSE)
+```
+
+**Compilation par moyenne d'ensemble**
+![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/compilation_hs_ca_mtq_pocc.png)
+
+**Compilation par moyenne pondérée**
+![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/compilation_hs_wmean_mtq_pocc.png)
+
+**Présence-absence de la compilation par moyenne d'ensemble**
+![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/compilation_pa_ca_mtq_pocc.png)
+
+**Présence-absence de la compilation par moyenne pondérée**
+![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/compilation_pa_wmean_mtq_pocc.png)
+
+
+
+
