@@ -33,11 +33,8 @@ mods <- lapply(mods, \(m) {
 })
 
 # Importation des occurrences d'espèces Guadeloupe/Martinique ----
-spp_local <- sp %>%
-  filter(individualCount > 0) %>%
-  select(x, y)
 spp_local_sf <- st_as_sf(
-  spp_local,
+  sp,
   coords = c("x", "y"),
   remove = F,
   crs = "EPSG:4326"
@@ -123,6 +120,7 @@ pa_extract <- mapply(
 )
 
 pa <- pa_extract %>% lapply(pluck, "pa_val")
+pa <- pa %>% lapply(cbind, obs = sp$individualCount)
 
 # Séparation des points selon leurs coordonnées géographiques
 pa <- lapply(
@@ -178,7 +176,7 @@ proportions_pa <- sapply(
             # alg_mod <- "ensemble"
 
             tb0 <- tb %>%
-              pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
               st_drop_geometry(.) %>%
               filter(value == 0) %>%
               group_by(., name) %>%
@@ -186,7 +184,7 @@ proportions_pa <- sapply(
               cbind(model_val = "absence")
 
             tb1 <- tb %>%
-              pivot_longer(cols = c("ensemble", "maxent", "rf")) %>%
+              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
               st_drop_geometry(.) %>%
               filter(value == 1) %>%
               group_by(., name) %>%
@@ -195,37 +193,58 @@ proportions_pa <- sapply(
 
             tb2 <- tb1 %>% rbind(tb0)
             tb2$model_val <- factor(tb2$model_val, ordered = T)
-            tb3 <- tb2 %>% filter(name == alg_mod)
+
+            a <- tb %>%
+              st_drop_geometry() %>%
+              select(all_of(c("rf", "maxent", "ensemble")))
+            b <- apply(
+              a, 2, \(x) x == tb %>% st_drop_geometry() %>% select(obs)
+            )
+
+            tb1 <- tb
+            tb1[, c("rf", "maxent", "ensemble")] <- b
+
+            tb2 <- tb1 %>%
+              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
+              st_drop_geometry(.) %>%
+              group_by(., name) %>%
+              reframe(., count = as.vector(table(value))) %>%
+              cbind(
+                predictions = rep(
+                  c(
+                    "Incorrectes",
+                    "Correctes"
+                  ),
+                  length(unique(.$name))
+                )
+              )
+            tb3 <- tb2 %>%
+              filter(name == alg_mod) %>%
+              select(-name)
 
             ggplot(
               tb3,
-              aes(y = name, x = count, group = name, fill = model_val)
+              aes(
+                y = predictions,
+                x = count,
+                group = predictions
+              )
             ) +
               geom_col(
-                col = "black", width = 0.8, position = "dodge2", alpha = 0.8
+                fill = "grey", width = 0.7, position = "dodge2", alpha = 0.8
               ) +
               geom_text(
                 aes(label = count),
-                position = position_dodge2(width = 0.8),
-                hjust = -0.7
+                position = position_dodge2(width = 0.7),
+                hjust = 1.5,
+                size = 5
               ) +
-              scale_fill_manual(
-                values = c("white", "#03a700"),
-                labels = c("Non-adéquat", "Adéquat")
-              ) +
-              guides(
-                fill = guide_legend(title = "Environnement"),
-                col = guide_legend(title = "Algorithme\nde modélisation")
-              ) +
-              xlab("Présences correctement prédites") +
-              ylab(NULL) +
-              theme(
-                axis.text.y = element_blank(),
-                axis.ticks.y = element_blank()
-              )
+              xlab("Correspondances observations/prédictions") +
+              ylab("Prédictions") +
+              theme(panel.background = element_blank())
 
           },
-          c("ensemble", "maxent", "rf"),
+          c("rf", "maxent", "ensemble"),
           SIMPLIFY = F,
           USE.NAMES = T
         )
@@ -245,12 +264,14 @@ p_alg_pa <- sapply(
   names(mods),
   \(alg_compilation) {
 
+    # alg_compilation <- "wmean"
+
     alg_comp <- switch(
       alg_compilation, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
     )
 
     sapply(
-      names(mods[[alg_compilation]]),
+      c("rf", "maxent", "ensemble"),
       \(alg_modelisation) {
 
         alg_modl <- switch(

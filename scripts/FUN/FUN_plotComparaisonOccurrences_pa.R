@@ -38,7 +38,7 @@ plotComparaisonOccurrences_pa <- function(sr, title, subtitle) {
         scale_y_continuous(expand = c(0, 0)) +
         theme(plot.margin = unit(rep(0.01, 4), "pt"))
       pocc <- p +
-        geom_sf(data = occ, col = "red", shape = "+", size = 5)
+        geom_sf(data = occ, col = "red", shape = "+", size = 3)
 
       # préparation de la seconde carte sans certains éléments graphiques
       p0 <- p +

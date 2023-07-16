@@ -277,4 +277,9 @@ hab_sub$slope <- terra::terrain(hab_sub)
 var_col <- usdm::vifstep(as.data.frame(hab_sub %>% na.omit()))@excluded
 hab_sub <- subset(hab_sub, names(hab_sub)[!names(hab_sub) %in% var_col])
 
+
+# Troisième approche
+# Modèle global projeté sur le local (donnés copernicus)
+source(here("scripts", "ENFA_global_clanod2.R"))
+
 # for (i in 1:10) { dev.off() }

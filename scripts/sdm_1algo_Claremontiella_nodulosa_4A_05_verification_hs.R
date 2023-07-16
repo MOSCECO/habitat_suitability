@@ -176,7 +176,7 @@ densities_hs <- sapply(
             # alg_mod <- "ensemble"
             # alg_col <- "red"
 
-            tb_long <- tb %>% pivot_longer(cols = c("ensemble", "maxent", "rf"))
+            tb_long <- tb %>% pivot_longer(cols = c("rf", "maxent", "ensemble"))
             tb_long <- tb_long %>% filter(name == alg_mod) %>%
               rbind(tb_long %>% filter(name != alg_mod))
             tb_long$col <- ifelse(tb_long$name == alg_mod, alg_col, "darkgrey")
@@ -205,7 +205,7 @@ densities_hs <- sapply(
               )
 
           },
-          c("ensemble", "maxent", "rf"),
+          c("rf", "maxent", "ensemble"),
           c("red", "green", "blue"),
           SIMPLIFY = F,
           USE.NAMES = T
@@ -231,7 +231,7 @@ p_alg_hs <- sapply(
     )
 
     sapply(
-      names(mods[[alg_compilation]]),
+      c("rf", "maxent", "ensemble"),
       \(alg_modelisation) {
 
         alg_modl <- switch(
