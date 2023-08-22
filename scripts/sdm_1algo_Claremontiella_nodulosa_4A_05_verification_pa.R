@@ -143,22 +143,97 @@ pa <- lapply(
   }
 )
 
-# présences/absences à l'habitat
-proportions_pa <- sapply(
+# proportions de présences/absences correctement prédites
+prop_pa_occ <- sapply(
   names(pa),
   \(alg) {
 
+    sapply(
+      names(pa[[alg]]),
+      \(nisl) {
+
+        tb <- pa[[alg]][[nisl]]
+
+        # Calcul du nombre de prédictions correctes ou non
+        # tb0 <- tb %>%
+        #   pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
+        #   st_drop_geometry(.) %>%
+        #   filter(value == 0) %>%
+        #   group_by(., name) %>%
+        #   summarise(., count = n()) %>%
+        #   cbind(model_val = "absence")
+        #
+        # tb1 <- tb %>%
+        #   pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
+        #   st_drop_geometry(.) %>%
+        #   filter(value == 1) %>%
+        #   group_by(., name) %>%
+        #   summarise(., count = n()) %>%
+        #   cbind(model_val = "presence")
+        #
+        # tb2 <- tb1 %>% rbind(tb0)
+        # tb2$model_val <- factor(tb2$model_val, ordered = T)
+
+        a <- tb %>%
+          st_drop_geometry() %>%
+          select(all_of(c("rf", "maxent", "ensemble")))
+        b <- apply(
+          a, 2, \(x) x == tb %>% st_drop_geometry() %>% select(obs)
+        )
+
+        tb1 <- tb
+        tb1[, c("rf", "maxent", "ensemble")] <- b
+        tb1 <- tb1 %>%
+          mutate(obs = ifelse(tb$obs == 1, "presence", "absence"))
+
+        return(tb1)
+      },
+      simplify = F,
+      USE.NAMES = T
+    )
+
+  },
+  simplify = F,
+  USE.NAMES = T
+)
+
+# présences uniquement pour les couleurs des occurrences observées
+# correctement prédites
+prop_pa_prs <- sapply(
+  names(prop_pa_occ),
+  \(alg) {
+    sapply(
+      names(prop_pa_occ[[alg]]),
+      \(nisl) {
+        tb <- prop_pa_occ[[alg]][[nisl]]
+        tb %>% filter(obs == "presence")
+      },
+      simplify = F,
+      USE.NAMES = T
+    )
+  },
+  simplify = F,
+  USE.NAMES = T
+)
+
+# graphiques des occurrences correctement prédites ou non
+proportions_pa <- sapply(
+  names(prop_pa_occ),
+  \(alg) {
+
     # alg <- names(pa)[[1]]
+    # alg <- "ca"
 
     alg_lab <- switch(
       alg, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
     )
 
     sapply(
-      names(pa[[alg]]),
+      names(prop_pa_occ[[alg]]),
       \(nisl) {
 
         # nisl <- names(pa[[alg]])[[1]]
+        # nisl <- "GLP"
 
         isl_lab <- switch(
           nisl,
@@ -167,57 +242,27 @@ proportions_pa <- sapply(
           MTQ = "Martinique"
         )
 
-        tb <- pa[[alg]][[nisl]]
+        tb1 <- prop_pa_occ[[alg]][[nisl]]
+
+        tb2 <- tb1 %>%
+          pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
+          st_drop_geometry(.) %>%
+          group_by(., name, obs) %>%
+          mutate(value = factor(value, levels = c("FALSE", "TRUE"))) %>%
+          reframe(., count = as.vector(table(value))) %>%
+          cbind(
+            predictions = rep(
+              c("Incorrectes", "Correctes"),
+              length(unique(.$name))
+            )
+          )
 
 
         mapply(
           \(alg_mod) {
 
-            # alg_mod <- "ensemble"
+            # alg_mod <- "rf"
 
-            tb0 <- tb %>%
-              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
-              st_drop_geometry(.) %>%
-              filter(value == 0) %>%
-              group_by(., name) %>%
-              summarise(., count = n()) %>%
-              cbind(model_val = "absence")
-
-            tb1 <- tb %>%
-              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
-              st_drop_geometry(.) %>%
-              filter(value == 1) %>%
-              group_by(., name) %>%
-              summarise(., count = n()) %>%
-              cbind(model_val = "presence")
-
-            tb2 <- tb1 %>% rbind(tb0)
-            tb2$model_val <- factor(tb2$model_val, ordered = T)
-
-            a <- tb %>%
-              st_drop_geometry() %>%
-              select(all_of(c("rf", "maxent", "ensemble")))
-            b <- apply(
-              a, 2, \(x) x == tb %>% st_drop_geometry() %>% select(obs)
-            )
-
-            tb1 <- tb
-            tb1[, c("rf", "maxent", "ensemble")] <- b
-
-            tb2 <- tb1 %>%
-              pivot_longer(cols = c("rf", "maxent", "ensemble")) %>%
-              st_drop_geometry(.) %>%
-              group_by(., name) %>%
-              reframe(., count = as.vector(table(value))) %>%
-              cbind(
-                predictions = rep(
-                  c(
-                    "Incorrectes",
-                    "Correctes"
-                  ),
-                  length(unique(.$name))
-                )
-              )
             tb3 <- tb2 %>%
               filter(name == alg_mod) %>%
               select(-name)
@@ -225,23 +270,30 @@ proportions_pa <- sapply(
             ggplot(
               tb3,
               aes(
-                y = predictions,
-                x = count,
-                group = predictions
+                y     = predictions,
+                x     = count,
+                group = predictions,
+                fill  = obs
               )
             ) +
               geom_col(
-                fill = "grey", width = 0.7, position = "dodge2", alpha = 0.8
+                col = "black", width = 0.7, position = "stack", alpha = 0.8
+              ) +
+              scale_fill_manual(
+                values = c("white", "#03a700")
               ) +
               geom_text(
                 aes(label = count),
-                position = position_dodge2(width = 0.7),
+                position = position_stack(),
                 hjust = 1.5,
                 size = 5
               ) +
               xlab("Correspondances observations/prédictions") +
               ylab("Prédictions") +
-              theme(panel.background = element_blank())
+              theme(
+                panel.background = element_blank(),
+                legend.position = "none"
+              )
 
           },
           c("rf", "maxent", "ensemble"),
@@ -274,6 +326,8 @@ p_alg_pa <- sapply(
       c("rf", "maxent", "ensemble"),
       \(alg_modelisation) {
 
+        # alg_modelisation <- "rf"
+
         alg_modl <- switch(
           alg_modelisation,
           ensemble = "Ensemble",
@@ -281,8 +335,19 @@ p_alg_pa <- sapply(
           rf       = "Forêt aléatoire (Random Forest)"
         )
 
+        # raster des antilles avec présence/absences
         sr <- mods[[alg_compilation]][[alg_modelisation]]
-        p_pa <- plotComparaisonOccurrences_pa(sr, alg_comp, alg_modl)
+
+        # vecteur des prédictions erronées ou non
+        pred <- prop_pa_prs[[alg_compilation]][["ANT"]] %>%
+          select(all_of(c("x", "y", alg_modelisation, "obs")))
+
+        p_pa <- plotComparaisonOccurrences_pa(
+          sr,
+          pred     = pred,
+          title    = alg_comp,
+          subtitle = alg_modl
+        )
 
       },
       simplify = F,

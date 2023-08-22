@@ -226,6 +226,8 @@ p_alg_hs <- sapply(
   names(mods),
   \(alg_compilation) {
 
+    # alg_compilation <- "wmean"
+
     alg_comp <- switch(
       alg_compilation, wmean = "Moyenne pondérée", ca = "Moyenne d'ensemble"
     )
@@ -233,6 +235,8 @@ p_alg_hs <- sapply(
     sapply(
       c("rf", "maxent", "ensemble"),
       \(alg_modelisation) {
+
+        # alg_modelisation <- "rf"
 
         alg_modl <- switch(
           alg_modelisation,
@@ -242,7 +246,11 @@ p_alg_hs <- sapply(
         )
 
         sr <- mods[[alg_compilation]][[alg_modelisation]]
-        p_hs <- plotComparaisonOccurrences_hs(sr, alg_comp, alg_modl)
+        p_hs <- plotComparaisonOccurrences_hs(
+          sr,
+          title    = alg_comp,
+          subtitle = alg_modl
+        )
 
       },
       simplify = F,

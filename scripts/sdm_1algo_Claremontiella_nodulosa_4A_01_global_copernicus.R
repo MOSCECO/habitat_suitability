@@ -96,6 +96,12 @@ bio <- do.call(rbind, bio_list)
 bio <- bio %>%
   arrange(desc(individualCount), type)
 
+# sauvegarde des données biologiques
+# saveRDS(
+#   bio,
+#   here("data", "analysis", "bio_data_cpc.rds")
+# )
+
 # Application de la fonction de production d'un SDM pour un seul algorithme
 sdmOneAlgo(
   alg            = alg,

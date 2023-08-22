@@ -11,6 +11,23 @@
 # les modèles ensemble selon l'idée qu'une absence est rédhibitoire
 # pour la cellule.
 
+# Espèce considérée ----
+binomial_name <- "Claremontiella nodulosa"
+bn <- gsub(" ", "_", binomial_name)
+
+# Filtre de profondeur par connaissance expert...
+# ... dont le proxy sont les 1er et 3ème quartiles des
+# distribution de profondeurs des espèces.
+d   <- hab_sub$depth
+bnd <- list.files(
+  here("data", "analysis", "depth_boundaries"), pattern = bn, full.names = T
+) %>% readRDS()
+# arrondissons aux dizaines inférieure et supérieure
+# bnd[[1]] <- floor(bnd[[1]]/10)*10
+# bnd[[2]] <- ceiling(bnd[[2]]/10)*10
+dmask <- ifel(d >= bnd[[1]] & d <= bnd[[2]], 1, 0)
+# x11(); plot(dmask)
+
 # paramètrage ----
 patterns <- c("Cla.nod.rf5.0", "Cla.nod.maxent5.0", "Cla.nod.basic.+ensemble")
 algs     <- c("rf5", "maxent5", "ensemble")
@@ -90,11 +107,17 @@ mapply(
       group_by(algo) %>%
       summarise(cutoff_mean = ceiling(mean(cutoff)))
 
-    # seuil
+    # seuil ####
     s_wmean <- thlds_TSS_mean$cutoff_mean[2]
     s_ca    <- thlds_TSS_mean$cutoff_mean[1]
     r_wmean <- ifel(proj_current_wmean > s_wmean, 1, 0)
     r_ca    <- ifel(proj_current_ca > s_ca, 1, 0)
+
+    # Limites de profondeurs ####
+    r_wmean_f <- r_wmean*dmask
+    names(r_wmean_f) <- names(r_wmean)
+    r_ca_f <- r_ca*dmask
+    names(r_ca_f) <- names(r_ca)
 
     # Visualisation
     # plot(r_wmean)
@@ -141,7 +164,8 @@ mapply(
     makeMyDir(path_compilation)
 
     writeRaster(
-      r_wmean,
+      # r_wmean,
+      r_wmean_f,
       here(
         path_compilation,
         paste(
@@ -158,7 +182,8 @@ mapply(
     )
 
     writeRaster(
-      r_ca,
+      # r_ca,
+      r_ca_f,
       here(
         path_compilation,
         paste(

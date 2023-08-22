@@ -1,4 +1,4 @@
-plotComparaisonOccurrences_pa <- function(sr, title, subtitle) {
+plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
   ps <- sapply(
     islands,
     \(nisl) {
@@ -11,6 +11,12 @@ plotComparaisonOccurrences_pa <- function(sr, title, subtitle) {
       tb           <- as.data.frame(sr_crop, xy = T)
       names(tb)[3] <- "value"
       occ <- spp_sf %>% st_crop(as.vector(e)[c(1,3,2,4)])
+      prd <- pred %>% st_crop(as.vector(e)[c(1,3,2,4)])
+      occ <- occ %>%
+        add_column(
+          right_pred = prd[[3]] %>% st_drop_geometry(),
+          .after = "individualCount"
+        )
 
       # emprise rectangulaire
       o <- st_convex_hull(st_union(isl))
@@ -36,9 +42,28 @@ plotComparaisonOccurrences_pa <- function(sr, title, subtitle) {
         ylim(bbox[c(2,4)]) +
         scale_x_continuous(expand = c(0, 0)) +
         scale_y_continuous(expand = c(0, 0)) +
-        theme(plot.margin = unit(rep(0.01, 4), "pt"))
+        theme(
+          plot.margin = unit(rep(0.01, 4), "pt"),
+          legend.key = element_rect(colour = "black")
+        )
+
       pocc <- p +
-        geom_sf(data = occ, col = "red", shape = "+", size = 3)
+        geom_sf(
+          data = occ,
+          aes(shape = right_pred, size = right_pred, col = right_pred),
+          alpha = 0.7
+        ) +
+        scale_shape_manual(values = c(1, 3), labels = c("Non-prédite", "Prédite")) +
+        scale_size_manual(values = c(1, 3), labels = c("Non-prédite", "Prédite")) +
+        scale_color_manual(
+          values = c("blue", "red"),
+          labels = c("Non-prédite", "Prédite")
+        ) +
+        guides(
+          shape = guide_legend(title = "Présence\nobservée"),
+          size  = guide_legend(title = "Présence\nobservée"),
+          col   = guide_legend(title = "Présence\nobservée")
+        )
 
       # préparation de la seconde carte sans certains éléments graphiques
       p0 <- p +

@@ -62,6 +62,12 @@ bio <- do.call(rbind, bio_list)
 bio <- bio %>%
   arrange(desc(individualCount), type)
 
+# sauvegarde des données biologiques
+# saveRDS(
+#   bio,
+#   here("data", "analysis", "bio_data_hab.rds")
+# )
+
 # Identifiant du modèle ----
 modeling_id <- gsub(
   " ",
