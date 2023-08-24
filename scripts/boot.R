@@ -220,6 +220,11 @@ global_occf <- lapply(
 names(global_occf) <- superFamilies
 
 # climatologies au niveau mondial ----
+
+# Copie des climatologies nécessaires pour le niveau global
+cmd <- "rsync -avuc --delete /home/borea/Documents/mosceco/r_projects/MOSCECO_L2/data_env_prep/data/tidy/clim_global/ /home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/data/raw/clim_global/"
+system(cmd)
+
 # Méthode avec les climatologies acquises pour chaque occurrence d'espèces
 # (old)
 global_clims <- readRDS(here("data", "raw", "ENFA", "clims.rds"))
