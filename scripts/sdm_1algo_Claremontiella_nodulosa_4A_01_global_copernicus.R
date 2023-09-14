@@ -5,7 +5,9 @@
 # PARAMÉTRAGE ####
 # "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
-alg <- "MAXENT"
+alg <- "RF"
+# alg <- "MAXENT"
+# alg <- "ensemble"
 # Nombre de répétitions (nombre de jeux de validation croisées)
 CV_nb_rep <- 5
 
@@ -15,17 +17,17 @@ pts_name_model <- paste(vec_name_model, collapse = ".")
 
 # Claremontiella nodulosa
 
-# jeux de données environnementales pour calibration du SDM ----
-# carte globale des variables environnementales
-clim_sub      <- cgc_sub
-clim_proj_sub <- subset(climosaic, names(clim_sub))
-
 # Données biologiques ----
 bn <- "Claremontiella nodulosa"
 sp  <- pa[[bn]] %>% as.data.frame(xy = T)
 binnam <- str_split(bn, " ")[[1]] %>%
   lapply(substr, 1, 3) %>%
   paste0(collapse = ".")
+
+# jeux de données environnementales pour calibration du SDM ----
+# carte globale des variables environnementales
+clim_sub      <- cgc_sub[["Muricoidea"]][[gsub(" ", "_", bn)]]
+clim_proj_sub <- subset(climosaic, names(clim_sub))
 
 # Données locales ----
 # Présences ----
@@ -106,7 +108,7 @@ bio <- bio %>%
 sdmOneAlgo(
   alg            = alg,
   CV_nb_rep      = CV_nb_rep,
-  binam          = binam,
+  binnam          = binnam,
   vec_name_model = vec_name_model,
   bio            = bio,
   clim_sub       = clim_proj_sub,

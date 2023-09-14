@@ -226,29 +226,138 @@ cmd <- "rsync -avuc --delete /home/borea/Documents/mosceco/r_projects/MOSCECO_L2
 system(cmd)
 
 # Import des climatologies au niveau global
-clim_global <- list.files(
-  here("data", "raw", "clim_global", superfm, species), full.names = T
-) %>% lapply(read_csv)
-names(clim_global) <- list.files(
-  here("data", "raw", "clim_global", superfm, species)
-) %>% substr(1, nchar(.)-4)
-clim_global$bottomt %>% View()
+cgc <- here("data", "raw", "clim_cenfa_clanod", "clims.rds") %>%
+  readRDS() %>%
+  rast()
+
+species <- #tibble(
+  # superFamily = c(rep("Majoidea", 8), rep("Muricoidea", 10)),
+  # species     = c(
+  c(
+    # "Amphithrax_hemphilli",
+    # "Macrocoeloma_nodipes",
+    # "Mithraculus_coryphe",
+    "Mithraculus_forceps",
+    # "Mithrax_pleuracanthus",
+    # "Omalacantha_bicornuta",
+    # "Stenorhynchus_seticornis",
+    # "Teleophrys_ruber",
+    "Claremontiella_nodulosa",
+    # "Coralliophila_galea",
+    # "Coralliophila_salebrosa",
+    # "Favartia_alveata",
+    # "Favartia_varimutabilis",
+    # "Phyllonotus_pomum",
+    # "Siratus_consuelae",
+    # "Stramonita_rustica",
+    # "Trachypollia_didyma",
+    # "Vasula_deltoidea",
+    NULL
+  )
+# )
+clim_global <- mapply(
+  \(supfm, spe) {
+    cg <- list.files(
+      here("data", "raw", "clim_global", supfm, spe), full.names = T
+    ) %>%
+      lapply(read_csv, show_col_types = FALSE)
+    names(cg) <- c("sbt", "so", "sw1", "ww", "hm0")
+    cg <- list(cg)
+    names(cg) <- spe
+    return(cg)
+  },
+  superFamilies,
+  species,
+  SIMPLIFY = F,
+  USE.NAMES = T
+)
 
 # Modification de la forme des climatologies global pour avoir une matrice
-coords <- clim_global$bottomt[, c("x", "y")]
-clim_global <- lapply(
-  names(clim_global),
-  \(n) {
-    tb <- clim_global[[n]]
-    tb <- tb %>% select(-c(x, y))
-    names(tb) <- names(tb) %>%
-      str_split("_") %>%
-      lapply(pluck, 2) %>%
-      paste(n, sep = "_")
-    return(tb)
-  }
+clim_global2 <- mapply(
+  \(supfm, spe) {
+
+    cg <- clim_global[[supfm]][[spe]]
+
+    # coords <- cg$sbt[, c("x", "y")]
+
+    # uniformisation des stations présentes (problème avec so chais pas pk)
+    z <- names(which.min(lapply(cg, nrow) %>% unlist()))
+    tbm <- cg[[z]]
+    stn <- paste(tbm$x, tbm$y)
+
+    coords <- tbm[, c("x", "y")]
+
+    cg2 <- lapply(
+      names(cg),
+      \(n) {
+        tb <- cg[[n]]
+
+        # uniformisation des stations présentes (problème avec so chais pas pk)
+        tb <- if (nrow(tb) > length(stn)) {
+          tbi <- tb[paste(tb$x, tb$y) %in% stn, ]
+          tbi <- tbi[which(paste(tbi$x, tbi$y) %in% stn), ]
+          tbi
+        } else {
+          tb[which(paste(tb$x, tb$y) %in% stn), ]
+        }
+
+        tb <- tb %>%
+          select(-c(x, y))
+        names(tb) <- names(tb) %>%
+          str_split("_") %>%
+          lapply(pluck, 2) %>%
+          paste(n, sep = ".")
+
+        return(tb)
+      }
+    )
+
+    cg2 <- cbind(coords, do.call(cbind, cg2)) %>%
+      na.omit() %>%
+      list()
+    names(cg2) <- spe
+
+    return(cg2)
+  },
+  superFamilies,
+  species,
+  SIMPLIFY = F,
+  USE.NAMES = T
 )
-clim_global <- cbind(coords, do.call(cbind, clim_global))
+
+# Tant que je n'ai pas refait tourner les codes pour C. nodulosa
+names(clim_global2$Muricoidea$Claremontiella_nodulosa) <-
+  gsub("NULL", "mean", names(clim_global2$Muricoidea$Claremontiella_nodulosa))
+
+cgc_sub <- mapply(
+  \(supfm, spe) {
+    tb <- clim_global2[[supfm]][[spe]]
+    tb <- tb %>%
+      select(names(.)[grepl("stdv|mean", names(.))])
+    tbl <- list(tb)
+    names(tbl) <- spe
+    return(tbl)
+  },
+  superFamilies,
+  species,
+  SIMPLIFY = F,
+  USE.NAMES = T
+)
+
+cgc_sub <- mapply(
+  \(supfm, spe) {
+    tb <- cgc_sub[[supfm]][[spe]]
+    var_col <- usdm::vifstep(as.data.frame(tb %>% na.omit()))@excluded
+    tb <- tb[, !names(tb) %in% var_col]
+    tbl <- list(tb)
+    names(tbl) <- spe
+    return(tbl)
+  },
+  superFamilies,
+  species,
+  SIMPLIFY = F,
+  USE.NAMES = T
+)
 
 # Import des climatologies locales ----
 

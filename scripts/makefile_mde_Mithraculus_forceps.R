@@ -3,9 +3,9 @@
 # Modèle de distribution d'espèces
 
 # Sélection de l'espèce ----
-# bn <- "Claremontiella nodulosa"
 superfm <- "Majoidea"
-species <- "Mithraculus_forceps"
+bn      <- "Mithraculus forceps"
+species <- gsub(" ", "_", bn)
 
 # Initialisation ----
 source(here::here("scripts", "boot.R"))
@@ -20,6 +20,18 @@ source(here::here("scripts", "boot.R"))
 
 # Modèle de distribution d'espèce ----
 # Première approche (naïve) ----
+
 # Deuxième approche (ACP) ----
+
 # Troisième approche (échelles locale et globale, trois niveaux) ----
+
 # Quatrième approche (hiérarchie des échelles) ----
+
+# PARAMÉTRAGE ####
+# "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
+# "FDA", "MARS", "RF", "MAXENT", "MAXNET"
+alg <- "MAXENT"
+# Nombre de répétitions (nombre de jeux de validation croisées)
+CV_nb_rep <- 5
+
+source(here("scripts", "mde_4A_01_global_copernicus.R"))

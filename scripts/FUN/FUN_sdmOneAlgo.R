@@ -1,7 +1,7 @@
 sdmOneAlgo <- function(
     alg,            # algorithm
     CV_nb_rep,      # run_number
-    binam,          # binomial_name
+    binnam,          # binomial_name
     vec_name_model, # model_name
     bio,            # biological_data
     clim_sub,       # environmental_data
@@ -155,7 +155,7 @@ sdmOneAlgo <- function(
   )
   all_biomod2_algos <- switch(
     alg,
-    ensemble = ensemble,
+    ENS = ensemble,
     match.arg(alg, ensemble)
   )
   print(
@@ -387,28 +387,43 @@ sdmOneAlgo <- function(
     value.var = "var.imp"
   )
 
-  # calculate the mean of variable importance by algorithm
-  (spec_models_var_import <- get_variables_importance(spec_models))
-
-  var_importance <- dcast(
-    spec_models_var_import,
-    expl.var ~ algo,
-    fun.aggregate = mean,
-    value.var = "var.imp"
-  )
-  p5 <- ggplot() +
-    geom_col(
-      data = var_importance,
+  p5 <- if (alg != "ENS") {
+    ggplot() +
+      geom_col(
+        data = var_importance,
+        aes(
+          x = expl.var %>%
+            factor(
+              levels = expl.var[order(get(alg), decreasing = T)]
+            ),
+          y = get(alg)
+        )
+      ) +
+      xlab("Variable environnementale") +
+      ylab("Contribution (%)")
+  } else {
+    var_importance_ens <- var_importance %>%
+      add_column(median = apply(.[, -1], 1, median))
+    var_importance_ens$expl.var <- factor(
+      var_importance_ens$expl.var,
+      levels = var_importance_ens$expl.var[
+        order(var_importance_ens$median, decreasing = T)
+      ]
+    )
+    var_importance_ens <- var_importance_ens %>%
+      select(-median) %>%
+      melt()
+    ggplot(
+      data = var_importance_ens,
       aes(
-        x = expl.var %>%
-          factor(
-            levels = expl.var[order(get(alg), decreasing = T)]
-          ),
-        y = get(alg)
+        x = expl.var,
+        y = value * 100
       )
     ) +
-    xlab("Variable environnementale") +
-    ylab("Contribution (%)")
+      geom_boxplot() +
+      xlab("Variable environnementale (médiane décroissante)") +
+      ylab("Contribution (%)")
+  }
 
   ggexport(
     plot = p5,
@@ -556,7 +571,10 @@ sdmOneAlgo <- function(
           sr_crop      <- terra::crop(sr, e)
           tb           <- as.data.frame(sr_crop, xy = T)
           names(tb)[3] <- "value"
-          occ <- spp_sf %>% st_crop(as.vector(e)[c(1,3,2,4)])
+          occ <- bio %>%
+            filter(individualCount > 0) %>%
+            st_crop(as.vector(e)[c(1,3,2,4)])
+          # occ <- spp_sf %>% st_crop(as.vector(e)[c(1,3,2,4)])
 
           # figures ggplot2
           p <- ggplot() +
