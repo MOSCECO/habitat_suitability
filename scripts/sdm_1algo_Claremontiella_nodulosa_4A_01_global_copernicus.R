@@ -19,6 +19,7 @@ pts_name_model <- paste(vec_name_model, collapse = ".")
 
 # Données biologiques ----
 bn <- "Claremontiella nodulosa"
+supfam <- species$superFamily[species$species == bn]
 sp  <- pa[[bn]] %>% as.data.frame(xy = T)
 binnam <- str_split(bn, " ")[[1]] %>%
   lapply(substr, 1, 3) %>%
@@ -26,7 +27,7 @@ binnam <- str_split(bn, " ")[[1]] %>%
 
 # jeux de données environnementales pour calibration du SDM ----
 # carte globale des variables environnementales
-clim_sub      <- cgc_sub[["Muricoidea"]][[gsub(" ", "_", bn)]]
+clim_sub      <- cgc_sub[[supfam]][[bn]]
 clim_proj_sub <- subset(climosaic, names(clim_sub))
 
 # Données locales ----
@@ -61,11 +62,11 @@ spa_local_sf <- spa_local_sf %>%
 # Données mondiales ----
 # Présences ----
 pas <- nrow(spp_local_sf) + 1
-spp_global_sf <- cgc_clanod_f %>%
-  cbind(st_coordinates(cgc_clanod_f)) %>%
+spp_global_sf <- cgc_sub_sf[[supfam]][[bn]] %>%
+  cbind(st_coordinates(cgc_sub_sf[[supfam]][[bn]])) %>%
   cbind(
     type = "pr",
-    id = paste0("pr", pas:(pas + nrow(cgc_clanod_f) - 1)),
+    id = paste0("pr", pas:(pas + nrow(cgc_sub_sf[[supfam]][[bn]]) - 1)),
     scale = "global",
     individualCount = 1
   ) %>%
@@ -74,14 +75,47 @@ spp_global_sf <- cgc_clanod_f %>%
   )
 
 # Pseudo-absences ----
+set.seed(123)
 pa_set <- bm_PseudoAbsences(
   resp.var    = rep(1, nrow(spp_global_sf)),
-  expl.var    = clim_sub,
-  nb.absences = nrow(spp_global_sf)
+  expl.var    = subset(cgc, names(clim_sub)),
+  nb.absences = nrow(spp_global_sf)*2,
+  strategy    = "random"
 )
+# i <- 1
+# while(
+#   2 %in% (apply(
+#     pa_set$env[grepl("pa", row.names(pa_set$xy)), ], 2, \(x) table(is.na(x))
+#   ) %>% lengths())
+# ) {
+#   i <- i + 1
+#   print(i)
+#   set.seed(i)
+#   pa_set <- bm_PseudoAbsences(
+#     resp.var    = rep(1, nrow(spp_global_sf)),
+#     expl.var    = subset(cgc, names(clim_sub)),
+#     nb.absences = nrow(spp_global_sf)
+#   )
+print(
+  apply(
+    pa_set$env[grepl("pa", row.names(pa_set$xy)), ], 2, \(x) table(is.na(x))
+  )
+)
+# )
+# }
+pa_set_nona <- (pa_set$env[grepl("pa", row.names(pa_set$xy)), ] %>%
+  na.omit())
+pa_set_nona <- pa_set_nona[
+  sample(1:nrow(pa_set_nona), size = nrow(spp_global_sf)),
+]
+
 spa_global_sf <- cbind(
-  type = "pa", id = row.names(pa_set$xy), scale = "global",
-  pa_set$xy, individualCount = 0, pa_set$env
+  type = "pa",
+  id = row.names(pa_set$xy),
+  scale = "global",
+  pa_set$xy,
+  individualCount = 0,
+  pa_set$env
 ) %>%
   filter(grepl("pa", .$id)) %>%
   as_tibble() %>%
@@ -108,7 +142,7 @@ bio <- bio %>%
 sdmOneAlgo(
   alg            = alg,
   CV_nb_rep      = CV_nb_rep,
-  binnam          = binnam,
+  binnam         = binnam,
   vec_name_model = vec_name_model,
   bio            = bio,
   clim_sub       = clim_proj_sub,

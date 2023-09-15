@@ -550,10 +550,45 @@ sdmOneAlgo <- function(
     spec_ensemble_models_proj_current@proj.out@val
   )
 
-  path_EM <- here("data", "analysis", "models", modeling_id, "ensemble")
+  # chemins de sauvegarde
+  path_EM <- here("data", "analysis", "models", modeling_id, "transfert")
   makeMyDir(path_EM)
   path_figEM <- here(path_EM, "figures")
   makeMyDir(path_figEM)
+  path_layEMpo <- here(path_EM, "layers_po") # probabilité d'occurrence
+  makeMyDir(path_layEMpo)
+  path_layEMpa <- here(path_EM, "layers_pa") # presence absence
+  makeMyDir(path_layEMpa)
+
+  # sauvegarde aux formats .shp et .tif
+  lapply(
+    names(spec_proj_current_spatRast),
+    \(nm) {
+      # nm <- names(spec_proj_current_spatRast)[2]
+      sr <- subset(spec_proj_current_spatRast, nm)
+      writeRaster(sr, here(path_layEMpo, nm %>% paste0(".tif")))
+      sf <- st_as_stars(sr) %>% st_as_sf()
+      st_write(sf, here(path_layEMpo, nm %>% paste0(".shp")))
+    })
+
+  # sauvegarde aux formats .shp et .tif des présence/absences
+  mapply(
+    \(nm, thld) {
+      # nm <- names(spec_proj_current_spatRast)[2]
+      sr <- subset(spec_proj_current_spatRast, nm)
+      sr_pa <- ifel(sr >= thld, 1, 0)
+      writeRaster(
+        sr_pa,
+        here(path_layEMpa, nm %>% paste0(".tif")),
+        overwrite = T
+      )
+      sf <- st_as_stars(sr_pa) %>% st_as_sf()
+      st_write(sf, here(path_layEMpa, nm %>% paste0(".shp")))
+    },
+    names(spec_proj_current_spatRast)[-1],
+    thlds[-1],
+    SIMPLIFY = F
+  )
 
   spec_pjs_plots <- mapply(
     \(EMalg, col_optn) {
