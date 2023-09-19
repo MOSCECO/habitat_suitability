@@ -1,49 +1,83 @@
 # Prise en compte de la profondeur maximale de l'espèce
 # à partir des données locales et globales.
 
-# species
-binomial_name <- "Claremontiella nodulosa"
+# Sorties : profondeurs minimales et maximales qui servent à découper le
+# modèle de distribution de sortie (comme "dire d'expert") si les profondeurs
+# sont aberrantes.
 
-# Global
-ameri_depth <- read_stars(
-  here("data", "raw", "dpth", "gebco_2023_n63.1055_s-60.293_w-143.4375_e-27.4219.tif")
+summaries_depths <- sapply(
+  species$species,
+  \(bn) {
+    sf <- species$superFamily[species$species == bn]
+
+    # Global
+    world_depth <- read_stars(
+      here("data", "raw", "dpth", "gebco_2023_n63.1055_s-60.293_w-143.4375_e-27.4219.tif")
+    )
+    world_occur <- list.files(
+      here("data", "analysis", "bio", sf, bn), pattern = "global", full.names = T
+    ) %>% readRDS()
+    world_occur <- world_occur %>%
+      filter(scale == "global" & type == "pr")
+    res <- st_extract(world_depth, world_occur)
+    names(res) <- c("depth", "geometry")
+    res$depth <- as.numeric(res$depth)
+    res$depth[res$depth > 0] <- 0
+
+    # Local
+    local_occur <- list.files(
+      here("data", "analysis", "bio", sf, bn), pattern = "local", full.names = T
+    ) %>% readRDS()
+    local_occur <- local_occur %>% filter(type == "pr")
+
+    # Quantile très similaires entre données globales et locales, bien qu'il y a
+    # sûrement un biais pour les occurrences tombant dans des NA au niveau global.
+    # Visualisation (fait planter l'ordi) :
+    # library(units)
+    # x11()
+    # ggplot() +
+    #   geom_stars(data = world_depth) +
+    #   geom_sf(data = world_occur, col = "red")
+    return(list(global = res$depth, local = local_occur$depth))
+  },
+  simplify = F,
+  USE.NAMES = T
 )
-ameri_occur <- list.files(
-  here("data", "analysis"), pattern = "bio_data_cpc", full.names = T
-) %>% readRDS()
-ameri_occur <- ameri_occur %>%
-  filter(scale == "global" & type == "pr")
-res <- st_extract(ameri_depth, ameri_occur, )
-names(res) <- c("depth", "geometry")
-res$depth <- as.numeric(res$depth)
-res$depth[res$depth > 0] <- 0
-summary(res$depth)
-quantile(res$depth, 0.9)
-quantile(res$depth, 0.1)
 
-# Local
-local_occur <- list.files(
-  here("data", "analysis"), pattern = "bio_data_hab", full.names = T
-) %>% readRDS()
-summary(local_occur$depth)
-quantile(local_occur$depth, 0.9)
-quantile(local_occur$depth, 0.1)
+summaries_depths %>%
+  lapply(\(sp) lapply(sp, summary))
 
-# Problème immense avec les profondeurs proposées par les modèles
-# on a déjà une preuve que la distribution de la profondeur modélisée est
-# différente de celle observée, et avec ces données là on constate que pour
-# C. nodulosa, les profondeurs sont bien supérieures à celles évoquées dans
-# Garrigues et al. 2014.
+summaries_depths %>%
+  lapply(\(sp) lapply(sp, quantile, c(0.1, 0.9)))
 
-# On propose donc d'utiliser les premier et troisième quartile de chaque espèce
-# pour circonscrire la distribution modélisée et prévenir les profondeurs
-# inexactes.
+summaries_depths %>%
+  lapply(pluck, "local") %>%
+  lapply(quantile, c(0.1, 0.9))
+summaries_depths %>%
+  lapply(pluck, "global") %>%
+  lapply(summary)
 
-all_depths <- res$depth %>% c(local_occur$depth)
-bnd <- summary(all_depths)[c(2, 5)]
+# Les différences ne sont pas aussi importantes qu'observées sans modification
+# du raster de climatologies global d'entrée (limité à 150m)
+
+# Pour l'instant on garde les minima et maxima de distribution
+boundaries_depths <- summaries_depths %>%
+  lapply(
+    \(l) {
+      summary((Reduce(c, l)))[c("Min.", "Max.")]
+    }
+  )
 
 p_depth_boundaries <- here("data", "analysis", "depth_boundaries")
 makeMyDir(p_depth_boundaries)
-file_name <- paste(gsub(" ", "_", binomial_name), "depth", "boundaries", sep = "_") %>%
-  paste0(".rds")
-saveRDS(bnd, here(p_depth_boundaries, file_name))
+
+lapply(
+  names(boundaries_depths),
+  \(n) {
+    bnd <- boundaries_depths[[n]]
+    file_name <- paste(
+      gsub(" ", "_", n), "depth", "boundaries", sep = "_"
+    ) %>% paste0(".rds")
+    saveRDS(bnd, here(p_depth_boundaries, file_name))
+  }
+)

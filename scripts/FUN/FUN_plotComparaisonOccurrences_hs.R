@@ -1,4 +1,4 @@
-plotComparaisonOccurrences_hs <- function(sr, title, subtitle) {
+plotComparaisonOccurrences_hs <- function(sr, spp_sf, title, subtitle) {
   ps <- sapply(
     islands,
     \(nisl) {

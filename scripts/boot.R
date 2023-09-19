@@ -27,6 +27,7 @@ libs_to_call <- list(
   "terra",
   "tidync",
   "tidyverse",
+  "usdm",
   "vegan"
 
 )
@@ -46,38 +47,38 @@ lapply(libs_to_call, function(i) {
 )
 
 # remote libraries (github)
-Sys.getenv("GITHUB_PAT")
-Sys.unsetenv("GITHUB_PAT")
-Sys.getenv("GITHUB_PAT")
+# Sys.getenv("GITHUB_PAT")
+# Sys.unsetenv("GITHUB_PAT")
+# Sys.getenv("GITHUB_PAT")
 
 # remote libraries ----
-remote_libs_to_call <- list(
-  # "RCMEMS"
-  "ClimateOperators"
-)
-
-github_accounts <- list(
-  "markpayneatwork"
-)
-
-mapply(
-  function(pckg, usr) {
-
-    bool <- is.element(pckg, .packages(all.available = TRUE))
-
-    if (!bool) {
-      path_url <- paste0(usr, "/", pckg)
-      print(path_url)
-      devtools::install_github(path_url)
-    }
-
-    library(pckg, character.only = TRUE)
-
-  },
-  remote_libs_to_call,
-  github_accounts,
-  SIMPLIFY = FALSE
-)
+# remote_libs_to_call <- list(
+#   # "RCMEMS"
+#   "ClimateOperators"
+# )
+#
+# github_accounts <- list(
+#   "markpayneatwork"
+# )
+#
+# mapply(
+#   function(pckg, usr) {
+#
+#     bool <- is.element(pckg, .packages(all.available = TRUE))
+#
+#     if (!bool) {
+#       path_url <- paste0(usr, "/", pckg)
+#       print(path_url)
+#       devtools::install_github(path_url)
+#     }
+#
+#     library(pckg, character.only = TRUE)
+#
+#   },
+#   remote_libs_to_call,
+#   github_accounts,
+#   SIMPLIFY = FALSE
+# )
 
 # functions
 lapply(
@@ -131,6 +132,34 @@ stations_nearest <- readRDS(
 me <- readRDS(
   here("data", "raw", "shp", "ART_masses_d-eaux", "me.rds")
 )
+
+# profondeurs mondiales ----
+# cmd <- paste(
+#   "rsync",
+#   "-avuc",
+#   "--delete",
+#   paste(
+#     pp,
+#     "data_environment/data/raw/gebco/",
+#     "gebco_bathymetry.tif",
+#     sep = "/"
+#   ),
+#   here("data", "raw", "dpth")
+# )
+# system(cmd)
+# cmd <- paste(
+#   "rsync",
+#   "-avuc",
+#   "--delete",
+#   paste(
+#     pp,
+#     "data_environment/data/tidy/bathymetrie_gebco_raster/",
+#     "bathymetry_gebco_raster_150m_0.083x0.083.tif",
+#     sep = "/"
+#   ),
+#   here("data", "raw", "dpth")
+# )
+# system(cmd)
 
 # mtds <- c("mean", "stdv", "mini", "maxi", "qt01", "qt05", "qt95", "qt99")
 mtds <- c("mean", "stdv")

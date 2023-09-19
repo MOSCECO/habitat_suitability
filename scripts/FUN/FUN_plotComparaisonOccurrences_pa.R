@@ -1,4 +1,6 @@
-plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
+plotComparaisonOccurrences_pa <- function(
+    sr, spp_sf, pred, title, subtitle
+) {
   ps <- sapply(
     islands,
     \(nisl) {
@@ -29,6 +31,7 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
       bbox <- st_bbox(b)
 
       # figures ggplot2
+      # Distribution de base ----
       p <- ggplot() +
         geom_tile(data = tb, aes(x = x, y = y, fill = factor(value))) +
         geom_sf(data = isl) +
@@ -47,14 +50,19 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
           legend.key = element_rect(colour = "black")
         )
 
+      # Graphe des présences correctement prédites ou non ----
       pocc <- p +
         geom_sf(
-          data = occ,
+          data = occ %>% filter(individualCount > 0),
           aes(shape = right_pred, size = right_pred, col = right_pred),
           alpha = 0.7
         ) +
-        scale_shape_manual(values = c(1, 3), labels = c("Non-prédite", "Prédite")) +
-        scale_size_manual(values = c(1, 3), labels = c("Non-prédite", "Prédite")) +
+        scale_shape_manual(
+          values = c(1, 3), labels = c("Non-prédite", "Prédite")
+        ) +
+        scale_size_manual(
+          values = c(1, 3), labels = c("Non-prédite", "Prédite")
+        ) +
         scale_color_manual(
           values = c("blue", "red"),
           labels = c("Non-prédite", "Prédite")
@@ -64,8 +72,32 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
           size  = guide_legend(title = "Présence\nobservée"),
           col   = guide_legend(title = "Présence\nobservée")
         )
+      # Graphe des absences correctement prédites ou non ----
+      aocc <- p +
+        geom_sf(
+          data = occ %>% filter(individualCount == 0),
+          aes(shape = right_pred, size = right_pred, col = right_pred),
+          alpha = 0.7
+        ) +
+        scale_shape_manual(
+          values = c(1, 3), labels = c("Non-prédite", "Prédite")
+        ) +
+        scale_size_manual(
+          values = c(1, 3), labels = c("Non-prédite", "Prédite")
+        ) +
+        scale_color_manual(
+          values = c("blue", "red"),
+          labels = c("Non-prédite", "Prédite")
+        ) +
+        guides(
+          shape = guide_legend(title = "Absence\nobservée"),
+          size  = guide_legend(title = "Absence\nobservée"),
+          col   = guide_legend(title = "Absence\nobservée")
+        )
 
+      # seconde carte ----
       # préparation de la seconde carte sans certains éléments graphiques
+      # base ----
       p0 <- p +
         labs(title = title, subtitle = subtitle)
 
@@ -81,6 +113,7 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
         p + theme(legend.position = "none")
       }
 
+      # présences ----
       pocc0 <- pocc +
         labs(title = title, subtitle = subtitle)
 
@@ -95,7 +128,32 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
       } else {
         pocc + theme(legend.position = "none")
       }
-      return(list(nocc = p, pocc = pocc, orig_p = p0, orig_pocc = pocc0))
+
+      # absences ----
+      aocc0 <- aocc +
+        labs(title = title, subtitle = subtitle)
+      aocc <- if(nisl == "MTQ") {
+        aocc +
+          theme(
+            axis.title.y = element_blank(),
+            axis.line.y  = element_blank(),
+            axis.text.y  = element_blank(),
+            axis.ticks.y = element_blank()
+          )
+      } else {
+        aocc + theme(legend.position = "none")
+      }
+
+      return(
+        list(
+          nocc = p,    # pas d'occurrences
+          pocc = pocc, # présences
+          aocc = aocc, # absences
+          orig_p    = p0,
+          orig_pocc = pocc0,
+          orig_aocc = aocc0
+        )
+      )
     },
     simplify = F,
     USE.NAMES = T
@@ -117,12 +175,28 @@ plotComparaisonOccurrences_pa <- function(sr, pred, title, subtitle) {
       plot.subtitle = element_text(hjust = 0.5),
       plot.margin = unit(rep(0.01, 4), "pt")
     )
+  Aocc <- Reduce(`+`, ps %>% lapply(pluck, 3))  +
+    plot_layout(guides = "collect", ) +
+    plot_annotation(title = title, subtitle = subtitle) &
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.margin = unit(rep(0.01, 4), "pt")
+    )
 
   return(
     list(
-      ANT = list(nocc = P, pocc = Pocc),
-      GLP = list(nocc = ps[["GLP"]]$orig_p, pocc = ps[["GLP"]]$orig_pocc),
-      MTQ = list(nocc = ps[["MTQ"]]$orig_p, pocc = ps[["MTQ"]]$orig_pocc)
+      ANT = list(nocc = P, pocc = Pocc, aocc = Aocc),
+      GLP = list(
+        nocc = ps[["GLP"]]$orig_p,
+        pocc = ps[["GLP"]]$orig_pocc,
+        aocc = ps[["GLP"]]$orig_aocc
+      ),
+      MTQ = list(
+        nocc = ps[["MTQ"]]$orig_p,
+        pocc = ps[["MTQ"]]$orig_pocc,
+        aocc = ps[["MTQ"]]$orig_aocc
+      )
     )
   )
 }

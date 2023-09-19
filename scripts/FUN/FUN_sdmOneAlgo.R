@@ -1,11 +1,13 @@
 sdmOneAlgo <- function(
     alg,            # algorithm
     CV_nb_rep,      # run_number
-    binnam,          # binomial_name
+    binnam,         # binomial_name code 3 letters
+    bn,             # binomial full
     vec_name_model, # model_name
     bio,            # biological_data
     clim_sub,       # environmental_data
-    clim_proj_sub   # subprojected_environmental_data
+    clim_proj_sub,  # subprojected_environmental_data
+    pts_name_model
 ) {
   # Identifiant du modèle ----
   modeling_id <- gsub(
@@ -165,8 +167,8 @@ sdmOneAlgo <- function(
     )
   )
   # Modélisation des habitats favorables selon une méthode ensembliste ----
-  cl <- startMPIcluster()
-  registerDoMPI(cl)
+  # cl <- startMPIcluster()
+  # registerDoMPI(cl)
   spec_models <- BIOMOD_Modeling(
     bm.options      = biom_options,
     bm.format       = spec_data,
@@ -175,9 +177,10 @@ sdmOneAlgo <- function(
     CV.nb.rep       = CV_nb_rep,
     data.split.perc = 80,
     var.import      = 3,
-    do.full.models  = F,
-    nb.cpu          = 2
+    do.full.models  = F
+    # nb.cpu          = cl$workerCount
   )
+  # closeCluster()
 
   # error avec "method(depth)"
   # vérifier la longueur du nom du modèle
