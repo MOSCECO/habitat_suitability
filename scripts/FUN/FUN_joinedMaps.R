@@ -103,7 +103,7 @@ joinedMaps <- function(
   list_of_maps_middlefied[[1]] <- if("patchwork" %in% class(list_of_maps_middlefied[[1]])) {
     list_of_maps_middlefied[[1]] +
       {
-        if(!keep_title) plot_annotation(title = plot_title)
+        if(keep_title) plot_annotation(title = plot_title)
       }
   } else { list_of_maps_middlefied[[1]] }
 

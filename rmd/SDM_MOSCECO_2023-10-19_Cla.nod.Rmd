@@ -21,14 +21,12 @@ knitr::opts_chunk$set(echo = FALSE, results = "hide", warning = FALSE, message =
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/habitat_suitability/Muricoidea/Claremontiella nodulosa/compilation_hs_muri_Cla.nod_ca_glp_pocc.png)
 
 ##### Présence absence
-**Compilation par moyenne pondérée (Présences)**
+**Compilation par moyenne pondérée (Présences haut, Absences bas)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_wmean_glp_pocc.png)
-**Compilation par moyenne pondérée (Absences)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_wmean_glp_aocc.png)
 
-**Compilation par moyenne d'ensemble (Présences)**
-![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_ca_glp_pocc.png)
-**Compilation par moyenne d'ensemble (Absences)**
+**Compilation par moyenne d'ensemble (Présences haut, Absences bas)**
+![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_ca_glp_pocc.png) 
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_ca_glp_aocc.png)
 
 #### Martinique
@@ -40,15 +38,11 @@ knitr::opts_chunk$set(echo = FALSE, results = "hide", warning = FALSE, message =
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/habitat_suitability/Muricoidea/Claremontiella nodulosa/compilation_hs_muri_Cla.nod_ca_mtq_pocc.png)
 
 ##### Présence absence
-**Compilation par moyenne pondérée (Présences)**
+**Compilation par moyenne pondérée (Présences haut, Absences bas)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_wmean_mtq_pocc.png)
-
-**Compilation par moyenne pondérée (Absences)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_wmean_mtq_aocc.png)
 
-**Compilation par moyenne d'ensemble (Présences)**
+**Compilation par moyenne d'ensemble (Présences haut, Absences bas)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_ca_mtq_pocc.png)
-
-**Compilation par moyenne d'ensemble (Absences)**
 ![](/home/borea/Documents/mosceco/r_projects/MOSCECO_L2/habitat_suitability/figures/compilation/presence_absence/Muricoidea/Claremontiella nodulosa/compilation_pa_val_muri_Cla.nod_ca_mtq_aocc.png)
 

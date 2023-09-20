@@ -2,8 +2,10 @@
 # avec densités des probabilités d'occurrences et
 # nombre d'occurrences correctement prédites
 
-lapply(
-  species$species[-3],
+sauvegarde <- T
+
+pout <- sapply(
+  species$species,
   \(bn) {
 
     supfam <- species$superFamily[species$species == bn]
@@ -396,13 +398,14 @@ lapply(
     path_fcs_spe <- here(path_fc_supfam, bn)
     makeMyDir(path_fcs_spe)
 
-    lapply(
+    sapply(
       c("wmean", "ca"),
       \(alg) {
         mapply(
           \(nisl, hisl, wisl, risl) {
-            lapply(
-              c("pocc", "nocc", "aocc"),
+            sapply(
+              # c("pocc", "nocc", "aocc"),
+              "aocc",
               \(xocc) {
 
                 # alg  <- "wmean"
@@ -419,28 +422,47 @@ lapply(
                 ) %>%
                   paste0(".png")
 
+                bool_title <- if(xocc != "aocc") {
+                  TRUE
+                } else { FALSE }
+
                 P_hig <- joinedMaps(
                   p_alg_pa[[alg]] %>% lapply(pluck, nisl, xocc),
                   collect_guides = T,
-                  keep_title = F,
+                  keep_title = bool_title,
                   plot_title = alg_lab
                 )
                 P_low <- joinedMaps(
                   proportions_pa[[alg]][[nisl]], collect_guides = T
                 )
 
-                P <- (P_hig / P_low) +
+                P <- if(xocc != "aocc") {
+                  (P_hig / P_low) +
                   plot_layout(heights = c(0.8, 0.2))
+                } else {
+                  P_hig / patchwork::plot_spacer() +
+                    plot_layout(heights = c(0.8, 0.2))
+                }
 
-                ggexport(
-                  P,
-                  filename = here(path_fcs_spe, file_name),
-                  width  = wisl,
-                  height = hisl,
-                  res    = risl
+                if (sauvegarde) {
+                  ggexport(
+                    P,
+                    filename = here(path_fcs_spe, file_name),
+                    width  = wisl,
+                    height = hisl,
+                    res    = risl
+                  )
+                }
+
+                return(
+                  list(
+                    phig = P_hig,
+                    plow = P_low
+                  )
                 )
-
-              }
+              },
+              simplify = F,
+              USE.NAMES = T
             )
           },
           c("ANT", "GLP", "MTQ"),
@@ -450,7 +472,11 @@ lapply(
           SIMPLIFY = F,
           USE.NAMES = T
         )
-      }
+      },
+      simplify = F,
+      USE.NAMES = T
     )
-  }
+  },
+  simplify = F,
+  USE.NAMES = T
 )
