@@ -263,26 +263,26 @@ names(cgc) <- gsub("vhm0", "hm0", names(cgc))
 
 # Espèces à modéliser
 species <- tibble(
-  superFamily = c(rep("Majoidea", 2), rep("Muricoidea", 2)),
+  superFamily = c(rep("Majoidea", 8), rep("Muricoidea", 10)),
   species     = c(
-    # "Amphithrax hemphilli",
-    # "Macrocoeloma nodipes",
-    # "Mithraculus coryphe",
+    "Amphithrax hemphilli",
+    "Macrocoeloma nodipes",
+    "Mithraculus coryphe",
     "Mithraculus forceps",
-    # "Mithrax pleuracanthus",
-    # "Omalacantha bicornuta",
+    "Mithrax pleuracanthus",
+    "Omalacantha bicornuta",
     "Stenorhynchus seticornis",
-    # "Teleophrys ruber",
+    "Teleophrys ruber",
     "Claremontiella nodulosa",
-    # "Coralliophila galea",
-    # "Coralliophila salebrosa",
-    # "Favartia alveata",
-    # "Favartia varimutabilis",
-    # "Phyllonotus pomum",
-    # "Siratus consuelae",
+    "Coralliophila galea",
+    "Coralliophila salebrosa",
+    "Favartia alveata",
+    "Favartia varimutabilis",
+    "Phyllonotus pomum",
+    "Siratus consuelae",
     "Stramonita rustica",
-    # "Trachypollia didyma",
-    # "Vasula deltoidea",
+    "Trachypollia didyma",
+    "Vasula deltoidea",
     NULL
   )
 )
@@ -292,21 +292,12 @@ clim_global <- sapply(
     sapply(
       species$species[species$superFamily == supfm],
       \(spe) {
-        cg <- list.files(
-          here("data", "raw", "climatologies_globales_points", supfm, spe),
-          full.names = T
-        ) %>%
-          lapply(read_csv, show_col_types = FALSE)
-        names(cg) <- list.files(
-          here("data", "raw", "climatologies_globales_points", supfm, spe)
-        ) %>%
-          str_split("\\.") %>%
-          lapply(pluck, 1) %>%
-          str_split("_") %>%
-          lapply(., \(x) pluck(x, length(x))) %>%
-          unlist()
-        names(cg)[which(names(cg) %in% "bottomt")] <- "sbt"
-        names(cg)[which(names(cg) %in% "vhm0")]    <- "hm0"
+
+        # supfm <- "Majoidea"
+        # spe <- "Stenorhynchus seticornis"
+        O <- global_occf[[spe]]
+        cg <- terra::extract(cgc, O, method = "bilinear", ID = F)
+        table(is.na(cg$mean.sbt))
         return(cg)
       },
       simplify  = F,
@@ -316,7 +307,8 @@ clim_global <- sapply(
   simplify  = F,
   USE.NAMES = T
 )
-
+# lapply(clim_global$Majoidea, \(x) table(is.na(x[, 1])))
+# lapply(clim_global$Muricoidea, \(x) table(is.na(x[, 1])))
 # Modification de la forme des climatologies global pour avoir une matrice
 clim_global_tb <- sapply(
   names(clim_global),
