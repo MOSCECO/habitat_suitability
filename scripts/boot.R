@@ -296,9 +296,8 @@ clim_global <- sapply(
         # supfm <- "Majoidea"
         # spe <- "Stenorhynchus seticornis"
         O <- global_occf[[spe]]
-        cg <- terra::extract(cgc, O, method = "bilinear", ID = F)
-        table(is.na(cg$mean.sbt))
-        return(cg)
+        cg <- terra::extract(cgc, O, method = "bilinear", ID = F, xy = T)
+        return(na.omit(cg))
       },
       simplify  = F,
       USE.NAMES = T
@@ -309,71 +308,16 @@ clim_global <- sapply(
 )
 # lapply(clim_global$Majoidea, \(x) table(is.na(x[, 1])))
 # lapply(clim_global$Muricoidea, \(x) table(is.na(x[, 1])))
-# Modification de la forme des climatologies global pour avoir une matrice
-clim_global_tb <- sapply(
+
+# sélection des variables environnementales uniquement
+# et les métriques que l'on veut sélectionner (ici sd et mean)
+cgc_sub <- sapply(
   names(clim_global),
   \(supfm) {
     sapply(
       names(clim_global[[supfm]]),
       \(spe) {
-
-        # supfm <- "Majoidea"
-        # spe <- "Stenorhynchus seticornis"
-        cg <- clim_global[[supfm]][[spe]]
-
-        # coords <- cg$sbt[, c("x", "y")]
-
-        # uniformisation des stations présentes (problème avec so chais pas pk)
-        z <- names(which.min(lapply(cg, nrow) %>% unlist()))
-        tbm <- cg[[z]]
-        stn <- paste(tbm$x, tbm$y)
-
-        coords <- tbm[, c("x", "y")]
-
-        cg2 <- lapply(
-          names(cg),
-          \(n) {
-            tb <- cg[[n]]
-
-            # uniformisation des stations présentes (problème avec so chais pas pk)
-            tb <- if (nrow(tb) > length(stn)) {
-              tbi <- tb[paste(tb$x, tb$y) %in% stn, ]
-              tbi <- tbi[which(paste(tbi$x, tbi$y) %in% stn), ]
-              tbi
-            } else {
-              tb[which(paste(tb$x, tb$y) %in% stn), ]
-            }
-
-            tb <- tb %>%
-              select(-c(x, y))
-            names(tb) <- names(tb) %>%
-              str_split("_") %>%
-              lapply(pluck, 2) %>%
-              paste(n, sep = ".")
-
-            return(tb)
-          })
-
-        cbind(coords, do.call(cbind, cg2)) %>%
-          na.omit()
-      },
-      simplify = F,
-      USE.NAMES = T
-    )
-  },
-  simplify = F,
-  USE.NAMES = T
-)
-
-# sélection des variables environnementales uniquement
-# et les métriques que l'on veut sélectionner (ici sd et mean)
-cgc_sub <- sapply(
-  names(clim_global_tb),
-  \(supfm) {
-    sapply(
-      names(clim_global_tb[[supfm]]),
-      \(spe) {
-        tb <- clim_global_tb[[supfm]][[spe]]
+        tb <- clim_global[[supfm]][[spe]]
         tb <- tb %>%
           select(names(.)[grepl("stdv|mean", names(.))])
         return(tb)
@@ -413,8 +357,12 @@ cgc_sub_sf <- sapply(
     sapply(
       names(cgc_sub[[supfm]]),
       \(spe) {
+
+        # supfm <- "Majoidea"
+        # spe <- "Stenorhynchus seticornis"
+
         nms <- names(cgc_sub[[supfm]][[spe]])
-        tb <- clim_global_tb[[supfm]][[spe]]
+        tb  <- clim_global[[supfm]][[spe]]
         st_as_sf(
           tb %>% select(all_of(c("x", "y", nms))),
           coords = c("x", "y"),

@@ -11,7 +11,8 @@ lapply(
   species$species,
   \(bn) {
     lapply(
-      c("RF", "MAXENT", "ENS"),
+      # c("RF", "MAXENT", "ENS"),
+      c("ENS")
       \(alg) {
 
         cat(
