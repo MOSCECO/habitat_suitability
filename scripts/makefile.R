@@ -5,17 +5,13 @@ source("scripts", "boot.R")
 # sauvegarde des données biologiques utilisées par chaque modèle
 source("scripts", "bio_datasets.R")
 
-# Modèles pour les données copernicus globales et locales
-source("scripts", "SDM01_global_copernicus.R")  # sauvegarde en .shp et .tif
-source("scripts", "SDM01_global_copernicus2.R") # sauvegarde en .tif
+# source("scripts", "FUN", "sdmOneAlgo")     # sauvegarde en .shp et .tif
+# source("scripts", "FUN", "sdmOneAlgo2")    # sauvegarde en .tif
 
-# Modèles pour les données sextant locales (Guadeloupe et Martinique)
-source("scripts", "SDM02_local_sextant.R")     # sauvegarde en .shp et .tif
-source("scripts", "SDM02_local_sextant2.R")    # sauvegarde en .tif
-
-# Modèles pour les données gebco locales
-source("scripts", "SDM03_local_habitat.R")     # sauvegarde en .shp et .tif
-source("scripts", "SDM03_local_habitat2.R")    # sauvegarde en .tif
+# Modèles d'adéquation environnementale ----     Pour les données....
+source("scripts", "SDM01_global_copernicus.R") # Copernicus locales et globales
+source("scripts", "SDM02_local_sextant.R")     # Sextant    locales (GLP et MTQ)
+source("scripts", "SDM03_local_habitat.R")     # GEBCO      locales (GLP et MTQ)
 
 # Plusieurs problèmes sur le cluster MNHN/meSU :
 # codes spécifiques à plusieurs espèces

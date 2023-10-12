@@ -38,7 +38,7 @@ lapply(
       cbind(terra::extract(climosaic, spa_local_sf, ID = F))
 
     # sauvegarde des données biologiques locales ----
-    path_bio <- here("data", "analysis", "bio")
+    path_bio <- here("data", "tidy", "bio")
     makeMyDir(path_bio)
     path_bio_sf <- here(path_bio, supfam)
     makeMyDir(path_bio_sf)
