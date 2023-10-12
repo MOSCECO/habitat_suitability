@@ -1,6 +1,7 @@
 sdmOneAlgo2 <- function(
     alg,            # algorithm
     CV_nb_rep,      # run_number
+    supfam,         # superfamily (Majoidea or Muricoidea)
     binnam,         # binomial_name code 3 letters
     bn,             # binomial full
     vec_name_model, # model_name
@@ -129,9 +130,15 @@ sdmOneAlgo2 <- function(
   )
   names(plot_env_bias) <- names(clim_sub)
 
-  # Formatage des données pour le modèle ----
+  # Chemins et dossiers de sauvegarde
   path_models <- here("data", "analysis", "models")
   makeMyDir(path_models)
+  path_supfam <- here(path_models, supfam)
+  makeMyDir(path_supfam)
+  path_species <- here(path_supfam, bn)
+  makeMyDir(path_species)
+
+  # Formatage des données pour le modèle ----
   spec_data <- BIOMOD_FormatingData(
     # Données initiales
     resp.var       = bio$individualCount,
@@ -139,7 +146,7 @@ sdmOneAlgo2 <- function(
     resp.xy        = st_coordinates(bio) %>%
       as_tibble() %>%  select(x = X, y = Y),
     # Modalités de sauvegarde
-    dir.name       = path_models,
+    dir.name       = path_species,
     resp.name      = modeling_id,
     # Gestion des occurrences multiples dans une cellule
     filter.raster  = TRUE

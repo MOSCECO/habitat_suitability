@@ -55,6 +55,7 @@ lapply(
         sdmOneAlgo2(
           alg            = alg,
           CV_nb_rep      = CV_nb_rep,
+          supfam         = supfam,
           binnam         = binnam,
           bn             = bn,
           vec_name_model = vec_name_model,
