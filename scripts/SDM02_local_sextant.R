@@ -8,11 +8,16 @@ source(here::here("scripts", "boot.R"))
 # "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
 lapply(
-  species$species[3:4],
+  # species$species,
+  species$species[species$superFamily == "Muricoidea"],
   \(bn) {
     lapply(
-      c("RF", "MAXENT", "ENS"),
+      # c("RF", "MAXENT", "ENS"),
+      c("ENS"),
       \(alg) {
+
+        # bn <- "Mithraculus forceps"
+        # alg <- "ENS"
 
         cat(
           "Début de routine\n",
@@ -28,63 +33,34 @@ lapply(
         )
         pts_name_model <- paste(vec_name_model, collapse = ".")
 
-        # jeux de données environnementales pour calibration du SDM ----
-        # carte globale des variables environnementales
-        clim_sub      <- sxt_sub
-        clim_proj_sub <- clim_sub
-
         # Données biologiques ----
         # bn <- "Claremontiella nodulosa"
+        supfam <- species$superFamily[species$species == bn]
         sp  <- pa[[bn]] %>% as.data.frame(xy = T)
         binnam <- str_split(bn, " ")[[1]] %>%
           lapply(substr, 1, 3) %>%
           paste0(collapse = ".")
 
-        # Données locales ----
-        # Présences ----
-        spp_local <- sp %>%
-          filter(individualCount > 0) %>%
-          cbind(type = "pr", id = paste0("pr", 1:nrow(.)), scale = "local") %>%
-          select(type, id, scale, x, y, individualCount)
-        spp_local_sf <- st_as_sf(
-          spp_local,
-          coords = c("x", "y"),
-          remove = F,
-          crs = "EPSG:4326"
-        )
-        spp_local_sf <- spp_local_sf %>%
-          cbind(terra::extract(clim_proj_sub, spp_local_sf, ID = F))
+        # jeux de données environnementales pour calibration du SDM ----
+        # carte globale des variables environnementales
+        clim_sub      <- sxt_sub
+        clim_proj_sub <- clim_sub
 
-        # Absences ----
-        spa_local <- sp %>%
-          filter(individualCount == 0) %>%
-          cbind(type = "ab", id = paste0("ab", 1:nrow(.)), scale = "local") %>%
-          select(type, id, scale, x, y, individualCount)
-        spa_local_sf <- st_as_sf(
-          spa_local,
-          coords = c("x", "y"),
-          remove = F,
-          crs = "EPSG:4326"
-        )
-        spa_local_sf <- spa_local_sf %>%
-          cbind(terra::extract(clim_proj_sub, spa_local_sf, ID = F))
-
-        # Aggrégation données biologiques ----
-        bio_list <- list(spp_local_sf, spa_local_sf)
-        bio <- do.call(rbind, bio_list)
-        bio <- bio %>%
-          arrange(desc(individualCount), type)
-
-        # sauvegarde des données biologiques
-        # saveRDS(
-        #   bio,
-        #   here("data", "analysis", "bio_data_sxt.rds")
-        # )
+        # Données d'occurrences ----
+        bio <- here("data", "tidy", "bio", supfam, bn, "bio_local.rds") %>%
+          readRDS()
+        bio_info <- bio[, 1:6] %>% st_drop_geometry()
+        bio_data <- bio[, 7:ncol(bio)] %>% st_drop_geometry()
+        bio_data <- bio_data %>% select(all_of(names(clim_sub)))
+        bio      <- bio_info %>%
+          cbind(bio_data) %>%
+          st_as_sf(geometry = st_geometry(bio))
 
         # Application de la fonction de production d'un SDM pour un seul algorithme
-        sdmOneAlgo(
+        sdmOneAlgo2(
           alg            = alg,
           CV_nb_rep      = CV_nb_rep,
+          supfam         = supfam,
           binnam         = binnam,
           bn             = bn,
           vec_name_model = vec_name_model,

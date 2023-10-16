@@ -11,7 +11,8 @@ lapply(
   species$species,
   \(bn) {
     lapply(
-      c("RF", "MAXENT", "ENS"),
+      # c("RF", "MAXENT", "ENS"),
+      c("ENS"),
       \(alg) {
 
         cat(
@@ -24,7 +25,9 @@ lapply(
         CV_nb_rep <- 5
 
         # nom du modèle
-        vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "03", "local", "hab")
+        vec_name_model <- c(
+          paste0(tolower(alg), CV_nb_rep), "03", "local", "hab"
+        )
         pts_name_model <- paste(vec_name_model, collapse = ".")
 
         # Données biologiques ----
@@ -40,46 +43,15 @@ lapply(
         clim_sub      <- hab_sub
         clim_proj_sub <- clim_sub
 
-        # Données locales ----
-        # Présences ----
-        spp_local <- sp %>%
-          filter(individualCount > 0) %>%
-          cbind(type = "pr", id = paste0("pr", 1:nrow(.)), scale = "local") %>%
-          select(type, id, scale, x, y, individualCount)
-        spp_local_sf <- st_as_sf(
-          spp_local,
-          coords = c("x", "y"),
-          remove = F,
-          crs = "EPSG:4326"
-        )
-        spp_local_sf <- spp_local_sf %>%
-          cbind(terra::extract(clim_proj_sub, spp_local_sf, ID = F))
-
-        # Absences ----
-        spa_local <- sp %>%
-          filter(individualCount == 0) %>%
-          cbind(type = "ab", id = paste0("ab", 1:nrow(.)), scale = "local") %>%
-          select(type, id, scale, x, y, individualCount)
-        spa_local_sf <- st_as_sf(
-          spa_local,
-          coords = c("x", "y"),
-          remove = F,
-          crs = "EPSG:4326"
-        )
-        spa_local_sf <- spa_local_sf %>%
-          cbind(terra::extract(clim_proj_sub, spa_local_sf, ID = F))
-
-        # Aggrégation données biologiques ----
-        bio_list <- list(spp_local_sf, spa_local_sf)
-        bio <- do.call(rbind, bio_list)
-        bio <- bio %>%
-          arrange(desc(individualCount), type)
-
-        # sauvegarde des données biologiques
-        # saveRDS(
-        #   bio,
-        #   here("data", "analysis", "bio_data_hab.rds")
-        # )
+        # Données d'occurrences ----
+        bio <- here("data", "tidy", "bio", supfam, bn, "bio_local.rds") %>%
+          readRDS()
+        bio_info <- bio[, 1:6] %>% st_drop_geometry()
+        bio_data <- bio[, 7:ncol(bio)] %>% st_drop_geometry()
+        bio_data <- bio_data %>% select(all_of(names(clim_sub)))
+        bio      <- bio_info %>%
+          cbind(bio_data) %>%
+          st_as_sf(geometry = st_geometry(bio))
 
         # Identifiant du modèle ----
         modeling_id <- gsub(
@@ -201,9 +173,17 @@ lapply(
         )
         names(plot_env_bias) <- names(clim_sub)
 
-        # Formatage des données pour le modèle ----
+        # Chemins et dossiers de sauvegarde
         path_models <- here("data", "analysis", "models")
         makeMyDir(path_models)
+        path_supfam <- here(path_models, supfam)
+        makeMyDir(path_supfam)
+        path_species <- here(path_supfam, bn)
+        makeMyDir(path_species)
+        path_modid <- here(path_species, modeling_id)
+        makeMyDir(path_modid)
+
+        # Formatage des données pour le modèle ----
         spec_data <- BIOMOD_FormatingData(
           # Données initiales
           resp.var       = bio$individualCount,
@@ -211,7 +191,7 @@ lapply(
           resp.xy        = st_coordinates(bio) %>%
             as_tibble() %>%  select(x = X, y = Y),
           # Modalités de sauvegarde
-          dir.name       = path_models,
+          dir.name       = path_species,
           resp.name      = modeling_id,
           # Gestion des occurrences multiples dans une cellule
           filter.raster  = TRUE
@@ -263,7 +243,7 @@ lapply(
         # 3: glm.fit: fitted probabilities numerically 0 or 1 occurred                                                          Fitting terminated with step failure - check results carefully
 
         # sauvegarde niche écologique/biais environnemental ----
-        path_neo <- here("data", "analysis", "models", modeling_id, "nicheEcoObs")
+        path_neo <- here(path_modid, "nicheEcoObs")
         makeMyDir(path_neo)
         file_name <- binnam %>%
           paste("ecological", "niche", "observed", sep = "_") %>%
@@ -279,7 +259,7 @@ lapply(
           limitsize = F
         )
 
-        path_biav <- here("data", "analysis", "models", modeling_id, "biasEnv")
+        path_biav <- here(path_modid, "biasEnv")
         makeMyDir(path_biav)
         lapply(
           names(plot_env_bias),
@@ -303,9 +283,7 @@ lapply(
         # Évaluation ----
 
         # fichier d'accueil
-        path_eval <- here(
-          "data", "analysis", "models", modeling_id, "eval"
-        )
+        path_eval <- here(path_modid, "eval")
         makeMyDir(path_eval)
 
         # get model evaluation scores
@@ -626,7 +604,7 @@ lapply(
         )
 
         # chemins de sauvegarde
-        path_EM <- here("data", "analysis", "models", modeling_id, "transfert")
+        path_EM <- here(path_modid, "transfert")
         makeMyDir(path_EM)
         path_figEM <- here(path_EM, "figures")
         makeMyDir(path_figEM)
@@ -642,8 +620,8 @@ lapply(
             # nm <- names(spec_proj_current_spatRast)[2]
             sr <- subset(spec_proj_current_spatRast, nm)
             writeRaster(sr, here(path_layEMpo, nm %>% paste0(".tif")))
-            sf <- st_as_stars(sr) %>% st_as_sf()
-            st_write(sf, here(path_layEMpo, nm %>% paste0(".shp")))
+            # sf <- st_as_stars(sr) %>% st_as_sf()
+            # st_write(sf, here(path_layEMpo, nm %>% paste0(".shp")))
           })
 
         # sauvegarde aux formats .shp et .tif des présence/absences
@@ -657,8 +635,8 @@ lapply(
               here(path_layEMpa, nm %>% paste0(".tif")),
               overwrite = T
             )
-            sf <- st_as_stars(sr_pa) %>% st_as_sf()
-            st_write(sf, here(path_layEMpa, nm %>% paste0(".shp")))
+            # sf <- st_as_stars(sr_pa) %>% st_as_sf()
+            # st_write(sf, here(path_layEMpa, nm %>% paste0(".shp")))
           },
           names(spec_proj_current_spatRast)[-1],
           thlds[-1],

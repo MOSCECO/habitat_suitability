@@ -8,7 +8,8 @@ source(here::here("scripts", "boot.R"))
 # "GLM", "GBM", "GAM", "CTA", "ANN", "SRE",
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
 lapply(
-  species$species,
+  # species$species,
+  species$species[species$superFamily == "Muricoidea"],
   \(bn) {
     lapply(
       # c("RF", "MAXENT", "ENS"),
@@ -31,7 +32,9 @@ lapply(
         CV_nb_rep <- 5
 
         # nom du modèle
-        vec_name_model <- c(paste0(tolower(alg), CV_nb_rep), "01", "global", "cpc", "2")
+        vec_name_model <- c(
+          paste0(tolower(alg), CV_nb_rep), "01", "global", "cpc"
+        )
         pts_name_model <- paste(vec_name_model, collapse = ".")
 
         # Données biologiques ----
@@ -50,6 +53,12 @@ lapply(
         # Données d'occurrences ----
         bio <- here("data", "tidy", "bio", supfam, bn, "bio_global.rds") %>%
           readRDS()
+        bio_info <- bio[, 1:6] %>% st_drop_geometry()
+        bio_data <- bio[, 7:ncol(bio)] %>% st_drop_geometry()
+        bio_data <- bio_data %>% select(all_of(names(clim_sub)))
+        bio      <- bio_info %>%
+          cbind(bio_data) %>%
+          st_as_sf(geometry = st_geometry(bio))
 
         # Application de la fonction de production d'un SDM pour un seul algorithme
         sdmOneAlgo2(

@@ -137,6 +137,8 @@ sdmOneAlgo2 <- function(
   makeMyDir(path_supfam)
   path_species <- here(path_supfam, bn)
   makeMyDir(path_species)
+  path_modid <- here(path_species, modeling_id)
+  makeMyDir(path_modid)
 
   # Formatage des données pour le modèle ----
   spec_data <- BIOMOD_FormatingData(
@@ -197,7 +199,7 @@ sdmOneAlgo2 <- function(
   # 3: glm.fit: fitted probabilities numerically 0 or 1 occurred                                                          Fitting terminated with step failure - check results carefully
 
   # sauvegarde niche écologique/biais environnemental ----
-  path_neo <- here("data", "analysis", "models", modeling_id, "nicheEcoObs")
+  path_neo <- here(path_modid, "nicheEcoObs")
   makeMyDir(path_neo)
   file_name <- binnam %>%
     paste("ecological", "niche", "observed", sep = "_") %>%
@@ -213,7 +215,7 @@ sdmOneAlgo2 <- function(
     limitsize = F
   )
 
-  path_biav <- here("data", "analysis", "models", modeling_id, "biasEnv")
+  path_biav <- here(path_modid, "biasEnv")
   makeMyDir(path_biav)
   lapply(
     names(plot_env_bias),
@@ -237,9 +239,7 @@ sdmOneAlgo2 <- function(
   # Évaluation ----
 
   # fichier d'accueil
-  path_eval <- here(
-    "data", "analysis", "models", modeling_id, "eval"
-  )
+  path_eval <- here(path_modid, "eval")
   makeMyDir(path_eval)
 
   # get model evaluation scores
@@ -561,7 +561,7 @@ sdmOneAlgo2 <- function(
   )
 
   # chemins de sauvegarde
-  path_EM <- here("data", "analysis", "models", modeling_id, "transfert")
+  path_EM <- here(path_modid, "transfert")
   makeMyDir(path_EM)
   path_figEM <- here(path_EM, "figures")
   makeMyDir(path_figEM)
