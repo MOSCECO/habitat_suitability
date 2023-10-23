@@ -33,17 +33,21 @@ libs_to_call <- list(
 )
 
 # library calls
-lapply(libs_to_call, function(i) {
+lapply(
 
-  bool <- is.element(i, .packages(all.available = TRUE))
+  libs_to_call,
 
-  if (!bool) {
-    install.packages(i, dependencies = T)
+  function(i) {
+
+    bool <- is.element(i, .packages(all.available = TRUE))
+
+    if (!bool) {
+      install.packages(i, dependencies = T)
+    }
+
+    library(i, character.only = TRUE)
+
   }
-
-  library(i, character.only = TRUE)
-
-}
 )
 
 # remote libraries (github)
@@ -52,13 +56,17 @@ lapply(libs_to_call, function(i) {
 # Sys.getenv("GITHUB_PAT")
 
 # remote libraries ----
-# remote_libs_to_call <- list(
-#   # "RCMEMS"
-#   "ClimateOperators"
+# github_accounts <- as.list(
+#   rep("SantanderMetGroup", 6)
 # )
 #
-# github_accounts <- list(
-#   "markpayneatwork"
+# remote_libs_to_call <- list(
+#   "loadeR.java",
+#   "climate4R.UDG",
+#   "loadeR",
+#   "transformeR",
+#   "visualizeR",
+#   "downscaleR"
 # )
 #
 # mapply(

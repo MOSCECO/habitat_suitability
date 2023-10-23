@@ -61,23 +61,66 @@ lapply(
         # my_name <- algs[[2]]
 
         path_models <- here("data", "analysis", "models_mesu", supfam, bn)
+
         # importation des résultats de modèles ----
         proj_currents <- lapply(
           list.files(path_models, pattern = my_pattern),
           \(f) {
-            # f <- "Cla.nod.rf5.01.global.cpc"
-            # f <- "Cla.nod.rf5.02.local.sxt"
-            # f <- "Cla.nod.rf5.03.local.hab.2"
 
-            list.files(
-              here(path_models, f, "proj_current"),
-              pattern = "\\.tif",
-              full.names = T
-            ) %>%
-              rast()
-          }
-        )
-        names(proj_currents) <- c("copernicus", "sextant", "habitat")
+            # f <- paste0(my_pattern, "1.global.cpc")
+            # f <- paste0(my_pattern, "2.local.sxt")
+            # f <- paste0(my_pattern, "3.local.hab.2")
+
+            alg_proj <- lapply(
+              c("RF", "MAXENT"),
+              \(ALG) {
+                path_models.out <- list.files(
+                  here(path_models, f, "proj_current"),
+                  pattern = paste(f, "current", "projection", "out", sep = "."),
+                  full.names = T
+                )
+                name_models.out <- list.files(
+                  here(path_models, f, "proj_current"),
+                  pattern = paste(f, "current", "projection", "out", sep = ".")
+                )
+                load(path_models.out)
+                bmd <- get(name_models.out)
+                bmd@dir.name <- path_models
+                BIOMOD_LoadModels(bm.out = bmd, alg = ALG)
+
+              })
+            names(mean_proj) <- c("RF", "MAXENT")
+          })
+        names(raster_proj_currents) <- c("copernicus", "sextant", "habitat")
+
+        # importation des résultats des projections ----
+        raster_proj_currents <- lapply(
+          list.files(path_models, pattern = my_pattern),
+          \(f) {
+
+            # f <- paste0(my_pattern, "1.global.cpc")
+            # f <- paste0(my_pattern, "2.local.sxt")
+            # f <- paste0(my_pattern, "3.local.hab.2")
+
+            mean_proj <- lapply(
+              c("RF", "MAXENT"),
+              \(ALG) {
+                path_models.out <- list.files(
+                  here(path_models, f, "proj_current", "individual_projections"),
+                  # pattern = paste(f, "current", "projection", "out", sep = "."),
+                  pattern = ALG %>% paste("img$", sep = "."),
+                  full.names = T
+                )
+                name_models.out <- list.files(
+                  here(path_models, f, "proj_current", "individual_projections"),
+                  # pattern = paste(f, "current", "projection", "out", sep = "."),
+                  pattern = ALG %>% paste("img$", sep = ".")
+                )
+                rast(path_models.out) %>% terra::app(mean)
+              })
+            names(mean_proj) <- c("RF", "MAXENT")
+          })
+        names(raster_proj_currents) <- c("copernicus", "sextant", "habitat")
 
         # Aggrégation par weighted mean
         proj_current_wmeans <- lapply(

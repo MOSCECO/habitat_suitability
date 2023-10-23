@@ -93,7 +93,7 @@ lapply(
       cbind,
       lapply(
         list.files(
-          here("data", "analysis", "bio", supfam, bn),
+          here("data", "tidy", "bio", supfam, bn),
           pattern = "local",
           full.names = T
         ),
@@ -271,7 +271,7 @@ lapply(
     # Comparaison des niches globales et locales pour les données de copernicus
     # occurrences complètes
     bio <- list.files(
-      here("data", "analysis", "bio", supfam, bn),
+      here("data", "tidy", "bio", supfam, bn),
       pattern = "global",
       full.names = T
     ) %>%

@@ -8,15 +8,24 @@
 summaries_depths <- sapply(
   species$species,
   \(bn) {
+    # bn <- "Teleophrys ruber"
     sf <- species$superFamily[species$species == bn]
 
     # Global
     world_depth <- read_stars(
-      here("data", "raw", "dpth", "gebco_2023_n63.1055_s-60.293_w-143.4375_e-27.4219.tif")
+      here(
+        "data",
+        "raw",
+        "dpth",
+        "gebco_2023_n63.1055_s-60.293_w-143.4375_e-27.4219.tif"
+      )
     )
     world_occur <- list.files(
-      here("data", "analysis", "bio", sf, bn), pattern = "global", full.names = T
-    ) %>% readRDS()
+      here("data", "tidy", "bio", sf, bn),
+      pattern = "global",
+      full.names = T
+    ) %>%
+      readRDS()
     world_occur <- world_occur %>%
       filter(scale == "global" & type == "pr")
     res <- st_extract(world_depth, world_occur)
@@ -26,8 +35,9 @@ summaries_depths <- sapply(
 
     # Local
     local_occur <- list.files(
-      here("data", "analysis", "bio", sf, bn), pattern = "local", full.names = T
-    ) %>% readRDS()
+      here("data", "tidy", "bio", sf, bn), pattern = "local", full.names = T
+    ) %>%
+      readRDS()
     local_occur <- local_occur %>% filter(type == "pr")
 
     # Quantile très similaires entre données globales et locales, bien qu'il y a

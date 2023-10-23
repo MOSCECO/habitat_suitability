@@ -1,8 +1,7 @@
 x11()
-par(mfrow = c(1, 3), mar = rep(0, 4))
-plot(dis$po$Muricoidea$Claremontiella_nodulosa$rf5_wmean)
-plot(dis$po$Muricoidea$Claremontiella_nodulosa$maxent5_wmean)
+par(mfrow = c(1, 2), mar = rep(0, 4))
 plot(dis$po$Muricoidea$Claremontiella_nodulosa$ens5_wmean)
+plot(dis$po$Muricoidea$Vasula_deltoidea$ens5_wmean)
 
 x11()
 par(mfrow = c(1, 3), mar = rep(0, 4))
