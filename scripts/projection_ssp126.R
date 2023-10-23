@@ -1,17 +1,16 @@
 # Projection avec valeurs de l'IPCC ----
 
+source(here::here("scripts", "boot.R"))
+
 # Chargement rasters scénarios
 climosaic_ssp126 <- here("data", "tidy", "climatologies_ipcc", "ssp126.rds") %>%
   readRDS()
-
-# Chargement rasters de projection
-clim_sub      <- cgc_sub[[supfam]][[bn]]
-clim_proj_sub <- subset(climosaic_ssp126, names(clim_sub))
+ssp <- "ssp126"
 
 lapply(
   # superFamilies,
   "Majoidea",
-  \(sufpam) {
+  \(supfam) {
 
     lapply(
       # species$species[species$superFamily == supfam],
@@ -20,6 +19,12 @@ lapply(
 
         # supfam <- "Majoidea"
         # bn     <- "Stenorhynchus seticornis"
+
+        # Chargement rasters de projection
+        clim_sub      <- cgc_sub[[supfam]][[bn]]
+        clim_proj_sub <- subset(climosaic_ssp126, names(clim_sub))
+
+        # Chemin des modèles générés pour le climat contemporain
         path_models_out <- here("data", "analysis", "models", supfam, bn)
 
         lapply(
@@ -44,8 +49,17 @@ lapply(
             proj_ipcc <- BIOMOD_EnsembleForecasting(
               bm.em         = mod_ensemble,
               new.env       = clim_proj_sub,
-              proj.name     = "forecast",
+              proj.name     = paste("forecast", ssp, sep = "_"),
               models.chosen = "all"
+            )
+
+            saveRDS(
+              proj_ipcc,
+              here(
+                pth,
+                paste("proj", paste("forecast", ssp, sep = "_"), sep = "_"),
+                "proj_ipcc.rds"
+              )
             )
 
             proj_ipcc_df <- cbind(
@@ -53,8 +67,12 @@ lapply(
             )
 
             saveRDS(
-              prij_ipcc_df,
-              here(pth, "proj_forecast", "proj_ipcc_df.rds")
+              proj_ipcc_df,
+              here(
+                pth,
+                paste("proj", paste("forecast", ssp, sep = "_"), sep = "_"),
+                "proj_ipcc_df.rds"
+              )
             )
 
           })
