@@ -15,3 +15,25 @@ sst_maximal_change <- ssp585$P95[ssp585$Period == "Medium Term (2041-2060)"]
 
 slr_minimal_change <- slr126$P5[slr126$Period  == "Medium Term (2041-2060)"]
 slr_maximal_change <- slr585$P95[slr585$Period == "Medium Term (2041-2060)"]
+
+table1 <- tibble(
+  `Scénario` = c("ssp1-2.6", "ssp1-2.6", "ssp5-5.8", "ssp5-5.8"),
+  Percentile = c(5, 95, 5, 95),
+  `Température de la mer` = c(
+    sst_minimal_change,
+    ssp126$P95[ssp126$Period  == "Medium Term (2041-2060)"],
+    ssp585$P5[ssp585$Period == "Medium Term (2041-2060)"],
+    sst_maximal_change
+  ),
+  `Élévation du niveau de la mer` = c(
+    slr_minimal_change,
+    slr126$P95[slr126$Period  == "Medium Term (2041-2060)"],
+    slr585$P5[slr585$Period == "Medium Term (2041-2060)"],
+    slr_maximal_change
+  ),
+)
+write.csv(
+  table1,
+  here("data", "raw", "projection", "table_livrable.csv"),
+  row.names = F
+)

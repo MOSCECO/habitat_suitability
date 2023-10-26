@@ -31,5 +31,6 @@ source(here("scripts", "violin_plots_validation_modèles.R"))
 # Projection futures : scénarios du GIEC ----
 source(here("scripts", "giec_sst_slr.R"))
 source(here("scripts", "data_environment_ipcc.R"))
-source(here("scripts", "biomod_model_link.R"))
+# source(here("scripts", "biomod_model_link.R"))
 source(here("scripts", "projection_ipcc.R"))
+source(here("scripts", "projection_ssp126.R"))

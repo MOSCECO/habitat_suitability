@@ -20,42 +20,43 @@ lapply(
         # supfam <- "Majoidea"
         # bn     <- "Stenorhynchus seticornis"
 
+        # occurrences locales
         bio <- readRDS(here("data", "tidy", "bio", supfam, bn, "bio_local.rds"))
-        # nom du modèle
-        vec_name_model <- c("ens5", "01", "global", "cpc")
-        pts_name_model <- paste(vec_name_model, collapse = ".")
-
-        # Identifiant du modèle ----
-        binnam <- str_split(bn, " ")[[1]] %>%
-          lapply(substr, 1, 3) %>%
-          paste0(collapse = ".")
-
-        modeling_id <- gsub(
-          " ",
-          ".",
-          paste(
-            binnam,
-            paste(vec_name_model, collapse = " ")
-          )
-        )
-
-        # Chargement rasters de projection
-        clim_sub      <- cgc_sub[[supfam]][[bn]]
-        clim_proj_sub <- subset(climosaic_ssp126, names(clim_sub))
 
         # Chemin des modèles générés pour le climat contemporain
         path_models_out <- here("data", "analysis", "models", supfam, bn)
 
+        clim_list <- list(
+          "cgc" = cgc_sub[[supfam]][[bn]],
+          "sxt" = sxt_sub,
+          "hab" = hab_sub
+        )
+
         lapply(
-          list.files(path_models_out, full.names = T),
+          list.files(path_models_out, full.names = T)[-1],
           \(pth) {
 
-            # pth <- list.files(path_models_out, full.names = T)[[1]]
+            # pth <- list.files(path_models_out, full.names = T)[[3]]
+            # Identifiants du modèle
+            modeling_id <- str_split(pth, "/")[[1]]
+            modeling_id <- modeling_id[[length(modeling_id)]]
+
+            # échelle
+            m <- str_split(modeling_id, "\\.")[[1]]
+            m <- m[which(grepl("[a-z]", m))]
+            clim_name <- m[[length(m)]]
+
+            # Chargement rasters de projection
+            clim_sub      <- clim_list[[clim_name]]
+            clim_proj_sub <- subset(climosaic_ssp126, names(clim_sub))
+
+            # chemin et nom du modèle d'ensemble
             pth_out <- list.files(
               pth, pattern = "ensemble.models.out", full.names = T
             )
             nam_out <- list.files(pth, pattern = "ensemble.models.out")
 
+            # chargement du modèle d'ensemble
             load(pth_out)
             mod_ensemble <- get(nam_out)
 

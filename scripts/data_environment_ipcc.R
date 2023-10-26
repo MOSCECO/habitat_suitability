@@ -2,6 +2,8 @@
 path_ipcc <- here("data", "tidy", "climatologies_ipcc")
 makeMyDir(path_ipcc)
 
+climosaic$slope <- terra::terrain(climosaic$depth)
+
 # Scénario optimiste ---
 climosaic_ssp126 <- climosaic
 climosaic_ssp126$depth <- climosaic_ssp126$depth + slr_minimal_change
