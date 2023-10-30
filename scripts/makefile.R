@@ -34,3 +34,9 @@ source(here("scripts", "data_environment_ipcc.R"))
 # source(here("scripts", "biomod_model_link.R"))
 # source(here("scripts", "projection_ipcc.R"))
 source(here("scripts", "projection_ssp126.R"))
+# scripts adaptés pour les superfamilles et les scénarios optimistes/pessimiste
+# utilisés sur le cluster
+source(here("scripts", "muricoidea_ssp126.R"))
+source(here("scripts", "muricoidea_ssp585.R"))
+source(here("scripts", "majoidea_ssp126.R"))
+source(here("scripts", "majoidea_ssp585.R"))

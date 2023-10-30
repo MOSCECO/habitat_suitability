@@ -1,22 +1,5 @@
 # Compilation des résultats des différents modèles
 
-# Problème avec les données : variations de la chlorophylle a aberrantes.
-# Modèle d'habitat à seulement deux paramètres
-# (pente et profondeur avec des NA dans la pente)
-
-# EG : problème : si on fait un premier seuil pour le masque
-# des habitats en décidant d'un seuil arbitraire, on perd l'idée
-# de filtre
-# décider d'un seuil identique pour chaque modèle et aggréger
-# les modèles ensemble selon l'idée qu'une absence est rédhibitoire
-# pour la cellule.
-
-# Choix de la projection
-# my_proj <- "current"
-my_proj <- "forecast_ssp126"
-# my_proj <- "forecast_ssp585"
-
-# Compilation
 lapply(
   species$species,
   \(bn) {
@@ -31,7 +14,7 @@ lapply(
     supfam <- species$superFamily[species$species == bn]
 
     # chemin de sauvegarde général ----
-    path_compilation <- here("data", "analysis", "compilation")
+    path_compilation <- here("data", "analysis", "compilation_proj")
     makeMyDir(path_compilation)
 
     # Filtre de profondeur par connaissance expert...
@@ -68,7 +51,7 @@ lapply(
 
         path_models <- here("data", "analysis", "models_mesu", supfam, bn)
         # importation des résultats de modèles ----
-        proj_scales <- lapply(
+        proj_currents <- lapply(
           list.files(path_models, pattern = my_pattern),
           \(f) {
             # f <- "Cla.nod.rf5.01.global.cpc"
@@ -76,65 +59,75 @@ lapply(
             # f <- "Cla.nod.rf5.03.local.hab.2"
 
             list.files(
-              here(path_models, f, paste("proj", my_proj, sep = "_")),
+              here(path_models, f, "proj_forecast_ssp126"),
               pattern = "\\.tif",
               full.names = T
             ) %>%
               rast()
           }
         )
-        names(proj_scales) <- c("copernicus", "sextant", "habitat")
+        names(proj_currents) <- c("copernicus", "sextant", "habitat")
 
-        lapply(
-          c("ca", "wmean"),
-          \(ens_alg) {
-            lapply(
-              c("KAPPA", "ROC", "TSS"),
-              \(met_evl) {
-
-                proj_scales_wmean <- sdmRasterCompilation(
-                  sr      = proj_scales,
-                  ens_alg = ens_alg,
-                  met_evl = met_evl,
-                  # Habitat > Sextant (local) > Copernicus (global)
-                  vec_weight = c(1, 2, 3)
-                )
-
-                # importation du modèle d'ensemble utilisé pour obtenir ses évaluations
-                mods <- lapply(
-                  list.files(path_models, pattern = my_pattern),
-                  \(f) {
-                    print(f)
-
-                    setwd(here(path_models, f))
-                    p <- list.files(pattern = "ensemble\\.models\\.out")
-                    obj <- load(p)
-                    return(get(obj))
-                  }
-                )
-                names(mods) <- c("copernicus", "sextant", "habitat")
-
-                mod_evals <- lapply(mods, get_evaluations)
-                cutoffs_met_evl <- lapply(
-                  mod_evals,
-                  \(tb) {
-                    tb %>%
-                      filter(
-                        metric.eval == met_evl, algo == paste0("EM",ens_alg)
-                      ) %>%
-                      summarise(cutoff = ceiling(mean(cutoff)))
-                      # summarise(cutoff = max(cutoff))
-                  }) %>% unlist()
-
-                # Transformation en présence/absence selon le cutoff
-                # et suppression des occurences hors limites de profondeurs
-                cutoff <- ceiling(mean(cutoffs_met_evl))
-                proj_scales_cut <- ifel(proj_scales_wmean > cutoff, 1, 0)
-                proj_scales_dpt <- proj_scales_cut*dmask
-              }
-            )
+        # Aggrégation par weighted mean
+        proj_current_wmeans <- lapply(
+          proj_currents,
+          \(r) {
+            subset(r, names(r)[grepl("EMwmeanByTSS", names(r))])
           }
         )
+        proj_current_cas <- lapply(
+          proj_currents,
+          \(r) {
+            subset(r, names(r)[grepl("EMcaByTSS", names(r))])
+          }
+        )
+
+        # stacking
+        pj_wmean <- Reduce(c, proj_current_wmeans)
+        pj_ca    <- Reduce(c, proj_current_cas)
+
+        # calcul de la moyenne pondérée
+        vec_weight         <- c(1, 2, 3)
+        proj_current_wmean <- terra::weighted.mean(pj_wmean, vec_weight)
+        proj_current_ca    <- terra::weighted.mean(pj_ca, vec_weight)
+
+        # importation du modèle d'ensemble utilisé pour obtenir ses évaluations
+        mods <- lapply(
+          list.files(path_models, pattern = my_pattern),
+          \(f) {
+            print(f)
+
+            setwd(here(path_models, f))
+            p <- list.files(pattern = "ensemble\\.models\\.out")
+            obj <- load(p)
+            return(get(obj))
+          }
+        )
+        names(mods) <- c("copernicus", "sextant", "habitat")
+
+        mod_evals <- lapply(mods, get_evaluations)
+        thlds_TSS <- lapply(mod_evals, \(tb) {
+          tb %>% filter(metric.eval == "TSS") %>% select(algo, cutoff)
+        })
+        thlds_TSS_mean <- do.call(rbind, thlds_TSS) %>%
+          group_by(algo) %>%
+          summarise(cutoff_mean = ceiling(mean(cutoff)))
+
+        # seuil ####
+        s_wmean <- thlds_TSS_mean$cutoff_mean[2]
+        s_ca    <- thlds_TSS_mean$cutoff_mean[1]
+        r_wmean <- ifel(proj_current_wmean > s_wmean, 1, 0)
+        r_ca    <- ifel(proj_current_ca > s_ca, 1, 0)
+
+        # Limites de profondeurs ####
+        r_wmean_f <- r_wmean*dmask
+        names(r_wmean_f) <- names(r_wmean)
+        r_ca_f <- r_ca*dmask
+        names(r_ca_f) <- names(r_ca)
+
+        # Visualisation
+        # plot(r_wmean)
+        # plot(r_ca)
 
         # sauvegarde probabilité d'adéquation de l'habitat
         path_cpo <- here(path_compilation, "probabilite_occurrence")
@@ -145,7 +138,7 @@ lapply(
         makeMyDir(path_cpos_species)
 
         writeRaster(
-          proj_scales_wmean,
+          proj_current_wmean,
           here(
             path_cpos_species,
             paste(
@@ -161,7 +154,7 @@ lapply(
         )
 
         writeRaster(
-          proj_scales_ca,
+          proj_current_ca,
           here(
             path_cpos_species,
             paste(
