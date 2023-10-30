@@ -1,52 +1,69 @@
-dis <- lapply(
+dis <- sapply(
   list.files(
     here("data", "analysis", "compilation")
   ),
   \(px) {
-    # px <- "probabilite_occurrence"
-    out <- lapply(
+    # px <- "adequation_environnementale"
+    out <- sapply(
       list.files(
         here("data", "analysis", "compilation", px)
       ),
       \(supfam) {
         # supfam <- "Majoidea"
-        out <- lapply(
+        out <- sapply(
           list.files(
             here("data", "analysis", "compilation", px, supfam)
           ),
           \(spe) {
             # spe <- "Mithraculus forceps"
-            out <- lapply(
+            print(spe)
+            out <- sapply(
               list.files(
                 here("data", "analysis", "compilation", px, supfam, spe),
-                full.names = T
               ),
-              \(f) {
-                rast(f)
-              }
+              \(ens_alg) {
+                # ens_alg <- "ca"
+                print(ens_alg)
+                out <- sapply(
+                  list.files(
+                    here(
+                      "data", "analysis", "compilation",
+                      px, supfam, spe, ens_alg
+                    ),
+                    full.names = T
+                  ),
+                  \(f) {
+                    out <- if (px == "adequation_environnementale") {
+                      rast(f)
+                    } else {
+                      sapply(
+                        list.files(f, full.names = T), rast,
+                        simplify = F, USE.NAMES = T
+                      )
+                    }
+                    return(out)
+                  },
+                  simplify = F,
+                  USE.NAMES = T
+                )
+                out <- Reduce(c, out)
+                t <- list.files(here(
+                  "data", "analysis", "compilation",
+                  px, supfam, spe, ens_alg
+                )) %>% str_split("_") %>% unlist() %>% table()
+                names(out) <- names(t)[t == 1]
+                out <- as.list(out)
+                names(out) <- names(t)[t == 1]
+                return(out)
+              },
+              simplify = F, USE.NAMES = T
             )
-            x1 <- list.files(
-              here("data", "analysis", "compilation", px, supfam, spe)
-            ) %>% str_split("_") %>% lapply(pluck, 2) %>% unlist()
-            x2 <- list.files(
-              here("data", "analysis", "compilation", px, supfam, spe)
-            ) %>% str_split("_") %>% lapply(pluck, 3) %>% unlist()
-            names(out) <- paste(x1, x2, sep = "_")
-            return(out)
-          }
+          },
+          simplify = F, USE.NAMES = T
         )
-        names(out) <- gsub(" ", "_", list.files(
-          here("data", "analysis", "compilation", px, supfam)
-        ))
-        return(out)
-      }
+      },
+      simplify = F, USE.NAMES = T
     )
-    names(out) <- list.files(
-      here("data", "analysis", "compilation", px)
-    )
-    return(out)
-  }
+  },
+  simplify = F, USE.NAMES = T
 )
-names(dis) <- c("pa", "po")
-
-dis$pa
