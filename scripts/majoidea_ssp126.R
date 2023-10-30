@@ -2,6 +2,13 @@
 
 source(here::here("scripts", "boot.R"))
 
+# Chemin vers MAXENT
+biom_options <- BIOMOD_ModelingOptions(
+  MAXENT = list(
+    path_to_maxent.jar = here("scripts", "maxent", "maxent.jar")
+  )
+)
+
 # Chargement rasters scénarios
 ssp <- "ssp126"
 climosaic_ssp <- here(
@@ -29,28 +36,37 @@ lapply(
         path_models_out <- here("data", "analysis", "models", supfam, bn)
 
         clim_list <- list(
-          "cgc" = cgc_sub[[supfam]][[bn]],
+          "cpc" = cgc_sub[[supfam]][[bn]],
           "sxt" = sxt_sub,
           "hab" = hab_sub
         )
 
+        print(clim_list)
+
         lapply(
-          list.files(path_models_out, full.names = T)[-1],
+          list.files(path_models_out, full.names = T),
           \(pth) {
 
+            print(pth)
             # pth <- list.files(path_models_out, full.names = T)[[3]]
             # Identifiants du modèle
             modeling_id <- str_split(pth, "/")[[1]]
             modeling_id <- modeling_id[[length(modeling_id)]]
+            print(modeling_id)
 
             # échelle
             m <- str_split(modeling_id, "\\.")[[1]]
+            print(m)
             m <- m[which(grepl("[a-z]", m))]
+            print(m)
             clim_name <- m[[length(m)]]
 
             # Chargement rasters de projection
+            print(clim_name)
             clim_sub      <- clim_list[[clim_name]]
+            print(clim_sub)
             clim_proj_sub <- subset(climosaic_ssp, names(clim_sub))
+            print(clim_proj_sub)
 
             # chemin et nom du modèle d'ensemble
             pth_out <- list.files(

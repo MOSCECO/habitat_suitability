@@ -2,6 +2,13 @@
 
 source(here::here("scripts", "boot.R"))
 
+# Chemin vers MAXENT
+biom_options <- BIOMOD_ModelingOptions(
+  MAXENT = list(
+    path_to_maxent.jar = here("scripts", "maxent", "maxent.jar")
+  )
+)
+
 # Chargement rasters scénarios
 ssp <- "ssp126"
 climosaic_ssp <- here(
@@ -11,12 +18,12 @@ climosaic_ssp <- here(
 
 lapply(
   # superFamilies,
-  "Majoidea",
+  "Muricoidea",
   \(supfam) {
 
     lapply(
       species$species[species$superFamily == supfam],
-      # "Stenorhynchus seticornis",
+      # "Claremontiella nodulosa",
       \(bn) {
 
         # supfam <- "Majoidea"
@@ -29,13 +36,13 @@ lapply(
         path_models_out <- here("data", "analysis", "models", supfam, bn)
 
         clim_list <- list(
-          "cgc" = cgc_sub[[supfam]][[bn]],
+          "cpc" = cgc_sub[[supfam]][[bn]],
           "sxt" = sxt_sub,
           "hab" = hab_sub
         )
 
         lapply(
-          list.files(path_models_out, full.names = T)[-1],
+          list.files(path_models_out, full.names = T),
           \(pth) {
 
             # pth <- list.files(path_models_out, full.names = T)[[3]]

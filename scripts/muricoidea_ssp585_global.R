@@ -3,7 +3,7 @@
 source(here::here("scripts", "boot.R"))
 
 # Chargement rasters scénarios
-ssp <- "ssp126"
+ssp <- "ssp585"
 climosaic_ssp <- here(
   "data", "tidy", "climatologies_ipcc", paste0(ssp, ".rds")
 ) %>%
@@ -11,7 +11,7 @@ climosaic_ssp <- here(
 
 lapply(
   # superFamilies,
-  "Majoidea",
+  "Muricoidea",
   \(supfam) {
 
     lapply(
@@ -29,13 +29,13 @@ lapply(
         path_models_out <- here("data", "analysis", "models", supfam, bn)
 
         clim_list <- list(
-          "cgc" = cgc_sub[[supfam]][[bn]],
+          "cpc" = cgc_sub[[supfam]][[bn]],
           "sxt" = sxt_sub,
           "hab" = hab_sub
         )
 
         lapply(
-          list.files(path_models_out, full.names = T)[-1],
+          list.files(path_models_out, full.names = T)[1],
           \(pth) {
 
             # pth <- list.files(path_models_out, full.names = T)[[3]]

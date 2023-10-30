@@ -9,7 +9,8 @@ source(here::here("scripts", "boot.R"))
 # "FDA", "MARS", "RF", "MAXENT", "MAXNET"
 lapply(
   # species$species,
-  species$species[species$superFamily == "Muricoidea"],
+  # species$species[species$superFamily == "Muricoidea"],
+  "Claremontiella nodulosa",
   \(bn) {
     lapply(
       # c("RF", "MAXENT", "ENS"),
