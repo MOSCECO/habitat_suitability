@@ -12,223 +12,238 @@
 # pour la cellule.
 
 # Choix de la projection
-# my_proj <- "current"
-my_proj <- "forecast_ssp126"
-# my_proj <- "forecast_ssp585"
-
-# Compilation
 lapply(
-  species$species,
-  \(bn) {
+  c("current", "forecast_ssp126", "forecast_ssp585"),
+  \(my_proj) {
 
-    # bn <- "Stenorhynchus seticornis"
+    # Compilation
+    lapply(
+      species$species,
+      \(bn) {
 
-    binnam <- bn %>%
-      str_split(" ") %>%
-      lapply(substr, 1, 3) %>%
-      unlist() %>%
-      paste(collapse = ".")
-    supfam <- species$superFamily[species$species == bn]
+        # bn <- "Stenorhynchus seticornis"
 
-    # chemin de sauvegarde général ----
-    path_compilation <- here("data", "analysis", "compilation")
-    makeMyDir(path_compilation)
+        binnam <- bn %>%
+          str_split(" ") %>%
+          lapply(substr, 1, 3) %>%
+          unlist() %>%
+          paste(collapse = ".")
+        supfam <- species$superFamily[species$species == bn]
 
-    # Filtre de profondeur par connaissance expert...
-    # ... dont les proxy -sont- étaient les 1er et 3ème quartiles des
-    # distribution de profondeurs des espèces.
-    d   <- hab_sub$depth
-    bnd <- list.files(
-      here("data", "analysis", "depth_boundaries"),
-      pattern = gsub(" ", "_", bn),
-      full.names = T
-    ) %>% readRDS()
-    # arrondissons aux dizaines inférieure et supérieure
-    # bnd[[1]] <- floor(bnd[[1]]/10)*10
-    # bnd[[2]] <- ceiling(bnd[[2]]/10)*10
-    dmask <- ifel(d >= bnd[[1]] & d <= bnd[[2]], 1, 0)
-    # x11(); plot(dmask)
+        # chemin de sauvegarde général ----
+        path_compilation <- here("data", "analysis", "compilation")
+        makeMyDir(path_compilation)
 
-    # paramètrage ----
-    algs     <- c(
-      # "rf5",
-      # "maxent5",
-      "ens5",
-      NULL
-    )
-    patterns <- paste(binnam, algs, "0", sep = ".")
+        # Filtre de profondeur par connaissance expert...
+        # ... dont les proxy -sont- étaient les 1er et 3ème quartiles des
+        # distribution de profondeurs des espèces.
+        d   <- hab_sub$depth
+        bnd <- list.files(
+          here("data", "analysis", "depth_boundaries"),
+          pattern = gsub(" ", "_", bn),
+          full.names = T
+        ) %>% readRDS()
+        # arrondissons aux dizaines inférieure et supérieure
+        # bnd[[1]] <- floor(bnd[[1]]/10)*10
+        # bnd[[2]] <- ceiling(bnd[[2]]/10)*10
+        dmask <- ifel(d >= bnd[[1]] & d <= bnd[[2]], 1, 0)
+        # x11(); plot(dmask)
 
-    mapply(
-      \(my_pattern, my_name) {
-
-        # my_pattern <- patterns[[1]]
-        # my_name <- algs[[1]]
-        # my_pattern <- patterns[[2]]
-        # my_name <- algs[[2]]
-
-        path_models <- here("data", "analysis", "models_mesu", supfam, bn)
-        # importation des résultats de modèles ----
-        proj_scales <- lapply(
-          list.files(path_models, pattern = my_pattern),
-          \(f) {
-            # f <- "Cla.nod.rf5.01.global.cpc"
-            # f <- "Cla.nod.rf5.02.local.sxt"
-            # f <- "Cla.nod.rf5.03.local.hab.2"
-
-            list.files(
-              here(path_models, f, paste("proj", my_proj, sep = "_")),
-              pattern = "\\.tif",
-              full.names = T
-            ) %>%
-              rast()
-          }
+        # paramètrage ----
+        algs     <- c(
+          # "rf5",
+          # "maxent5",
+          "ens5",
+          NULL
         )
-        names(proj_scales) <- c("copernicus", "sextant", "habitat")
+        patterns <- paste(binnam, algs, "0", sep = ".")
 
-        lapply(
-          c("ca", "wmean"),
-          \(ens_alg) {
-            lapply(
-              c("KAPPA", "ROC", "TSS"),
-              \(met_evl) {
+        mapply(
+          \(my_pattern, my_name) {
+
+            # my_pattern <- patterns[[1]]
+            # my_name <- algs[[1]]
+            # my_pattern <- patterns[[2]]
+            # my_name <- algs[[2]]
+
+            path_models <- here("data", "analysis", "models_mesu", supfam, bn)
+            # importation des résultats de modèles ----
+            proj_scales <- lapply(
+              list.files(path_models, pattern = my_pattern),
+              \(f) {
+                # f <- "Cla.nod.rf5.01.global.cpc"
+                # f <- "Cla.nod.rf5.02.local.sxt"
+                # f <- "Cla.nod.rf5.03.local.hab.2"
+
+                list.files(
+                  here(path_models, f, paste("proj", my_proj, sep = "_")),
+                  pattern = "\\.tif",
+                  full.names = T
+                ) %>%
+                  rast()
+              }
+            )
+            names(proj_scales) <- c("copernicus", "sextant", "habitat")
+
+            proj_compil <- sapply(
+              c("ca", "wmean"),
+              \(ens_alg) {
+
+                print(ens_alg)
 
                 proj_scales_wmean <- sdmRasterCompilation(
                   sr      = proj_scales,
                   ens_alg = ens_alg,
-                  met_evl = met_evl,
+                  # Seule métrique d'évaluation disponible pour
+                  # habitat : ça avait été l'objet d'un bug sur le cluster
+                  met_evl = "TSS",
                   # Habitat > Sextant (local) > Copernicus (global)
                   vec_weight = c(1, 2, 3)
                 )
 
-                # importation du modèle d'ensemble utilisé pour obtenir ses évaluations
-                mods <- lapply(
-                  list.files(path_models, pattern = my_pattern),
-                  \(f) {
-                    print(f)
+                proj_scales_depth <- sapply(
+                  c("KAPPA", "ROC", "TSS"),
+                  \(met_evl) {
 
-                    setwd(here(path_models, f))
-                    p <- list.files(pattern = "ensemble\\.models\\.out")
-                    obj <- load(p)
-                    return(get(obj))
+                    # ens_alg <- "ca"
+                    # met_evl <- "KAPPA"
+                    print(met_evl)
+
+                    # importation du modèle d'ensemble utilisé pour obtenir ses évaluations
+                    mods <- lapply(
+                      list.files(path_models, pattern = my_pattern),
+                      \(f) {
+                        print(f)
+
+                        setwd(here(path_models, f))
+                        p <- list.files(pattern = "ensemble\\.models\\.out")
+                        obj <- load(p)
+                        return(get(obj))
+                      }
+                    )
+                    names(mods) <- c("copernicus", "sextant", "habitat")
+
+                    mod_evals <- lapply(mods, get_evaluations)
+                    cutoffs_met_evl <- lapply(
+                      mod_evals,
+                      \(tb) {
+                        tb %>%
+                          filter(
+                            metric.eval == met_evl, algo == paste0("EM",ens_alg)
+                          ) %>%
+                          summarise(cutoff = ceiling(mean(cutoff)))
+                        # summarise(cutoff = max(cutoff))
+                      }) %>% unlist()
+
+                    # Transformation en présence/absence selon le cutoff
+                    # et suppression des occurences hors limites de profondeurs
+                    cutoff <- ceiling(mean(cutoffs_met_evl))
+                    proj_scales_cut <- ifel(proj_scales_wmean > cutoff, 1, 0)
+                    proj_scales_dpt <- proj_scales_cut*dmask
+                    names(proj_scales_dpt) <- paste0("CT", tolower(met_evl), cutoff)
+
+                    return(proj_scales_dpt)
+                  },
+                  simplify = FALSE, USE.NAMES = T)
+                return(
+                  list(
+                    po = proj_scales_wmean,
+                    pa = proj_scales_depth
+                  )
+                )
+              },
+              simplify = FALSE, USE.NAMES = T)
+
+            # sauvegarde probabilité d'adéquation de l'habitat
+            path_cpo <- here(path_compilation, "adequation_environnementale")
+            makeMyDir(path_cpo)
+            path_cpo_supfam <- here(path_cpo, supfam)
+            makeMyDir(path_cpo_supfam)
+            path_cpos_species <- here(path_cpo_supfam, bn)
+            makeMyDir(path_cpos_species)
+
+            lapply(
+              names(proj_compil),
+              \(ens_alg) {
+
+                path_ens_alg <- here(path_cpos_species, ens_alg)
+                makeMyDir(path_ens_alg)
+
+                writeRaster(
+                  proj_compil[[ens_alg]]$po,
+                  here(
+                    path_ens_alg,
+                    paste(
+                      "adequation-environnementale",
+                      my_name,
+                      my_proj,
+                      paste0("EM", ens_alg), # Ensemble modelling algorithm
+                      paste0("CP", "wmean"),   # Compilation algorithm
+                      # Weights used in the compilation algorithm
+                      "w" %>% paste0(paste(vec_weight, collapse = "-")),
+                      sep = "_"
+                    ) %>%
+                      paste0(".tif")
+                  ),
+                  overwrite = T
+                )
+              })
+
+            # sauvegarde présence/absence
+            path_cpa <- here(path_compilation, "presence_absence")
+            makeMyDir(path_cpa)
+            path_cpa_supfam <- here(path_cpa, supfam)
+            makeMyDir(path_cpa_supfam)
+            path_cpas_species <- here(path_cpa_supfam, bn)
+            makeMyDir(path_cpas_species)
+
+            lapply(
+              names(proj_compil),
+              \(ens_alg) {
+
+                path_ens_alg <- here(path_cpas_species, ens_alg)
+                makeMyDir(path_ens_alg)
+
+                lapply(
+                  names(proj_compil[[ens_alg]]$pa),
+                  \(met_evl) {
+
+                    r <- proj_compil[[ens_alg]]$pa[[met_evl]]
+
+                    path_met_evl <- here(path_ens_alg, met_evl)
+                    makeMyDir(path_met_evl)
+
+                    writeRaster(
+                      r,
+                      here(
+                        path_met_evl,
+                        paste(
+                          "presence-absence",
+                          my_name,
+                          my_proj,
+                          paste0("EM", ens_alg), # Ensemble Modelling algorithm
+                          paste0("CP", "wmean"),   # ComPilation algorithm
+                          # Weights used in the compilation algorithm
+                          "w" %>% paste0(paste(vec_weight, collapse = "-")),
+                          # CutOff methods and value
+                          names(r),
+                          sep = "_"
+                        ) %>%
+                          paste0(".tif")
+                      ),
+                      overwrite = T
+                    )
                   }
                 )
-                names(mods) <- c("copernicus", "sextant", "habitat")
-
-                mod_evals <- lapply(mods, get_evaluations)
-                cutoffs_met_evl <- lapply(
-                  mod_evals,
-                  \(tb) {
-                    tb %>%
-                      filter(
-                        metric.eval == met_evl, algo == paste0("EM",ens_alg)
-                      ) %>%
-                      summarise(cutoff = ceiling(mean(cutoff)))
-                      # summarise(cutoff = max(cutoff))
-                  }) %>% unlist()
-
-                # Transformation en présence/absence selon le cutoff
-                # et suppression des occurences hors limites de profondeurs
-                cutoff <- ceiling(mean(cutoffs_met_evl))
-                proj_scales_cut <- ifel(proj_scales_wmean > cutoff, 1, 0)
-                proj_scales_dpt <- proj_scales_cut*dmask
-              }
-            )
-          }
+              })
+          },
+          patterns,
+          algs,
+          SIMPLIFY = F,
+          USE.NAMES = T
         )
-
-        # sauvegarde probabilité d'adéquation de l'habitat
-        path_cpo <- here(path_compilation, "probabilite_occurrence")
-        makeMyDir(path_cpo)
-        path_cpo_supfam <- here(path_cpo, supfam)
-        makeMyDir(path_cpo_supfam)
-        path_cpos_species <- here(path_cpo_supfam, bn)
-        makeMyDir(path_cpos_species)
-
-        writeRaster(
-          proj_scales_wmean,
-          here(
-            path_cpos_species,
-            paste(
-              "habitat-suitability",
-              my_name,
-              "wmean",
-              "w" %>% paste0(paste(vec_weight, collapse = "-")),
-              sep = "_"
-            ) %>%
-              paste0(".tif")
-          ),
-          overwrite = T
-        )
-
-        writeRaster(
-          proj_scales_ca,
-          here(
-            path_cpos_species,
-            paste(
-              "habitat-suitability",
-              my_name,
-              "ca",
-              "w" %>% paste0(paste(vec_weight, collapse = "-")),
-              sep = "_"
-            ) %>%
-              paste0(".tif")
-          ),
-          overwrite = T
-        )
-
-        # sauvegarde présence/absence
-        path_cpa <- here(path_compilation, "presence_absence")
-        makeMyDir(path_cpa)
-        path_cpa_supfam <- here(path_cpa, supfam)
-        makeMyDir(path_cpa_supfam)
-        path_cpas_species <- here(path_cpa_supfam, bn)
-        makeMyDir(path_cpas_species)
-
-        writeRaster(
-          # r_wmean,
-          r_wmean_f,
-          here(
-            path_cpas_species,
-            paste(
-              "presence-absence",
-              my_name,
-              "wmean",
-              "s" %>% paste0(s_wmean),
-              "w" %>% paste0(paste(vec_weight, collapse = "-")),
-              sep = "_"
-            ) %>%
-              paste0(".tif")
-          ),
-          overwrite = T
-        )
-
-        writeRaster(
-          # r_ca,
-          r_ca_f,
-          here(
-            path_cpas_species,
-            paste(
-              "presence-absence",
-              my_name,
-              "ca",
-              "s" %>% paste0(s_ca),
-              "w" %>% paste0(paste(vec_weight, collapse = "-")),
-              sep = "_"
-            ) %>%
-              paste0(".tif")
-          ),
-          overwrite = T
-        )
+      })
 
 
-
-
-      },
-      patterns,
-      algs,
-      SIMPLIFY = F,
-      USE.NAMES = T
-
-    )
   }
 )
