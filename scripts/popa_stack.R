@@ -22,14 +22,15 @@ dis_reduc <- Sapply(
   })
 
 # presence-absence | committee averaging
-popaPlot(
-  projRasters        = dis,
-  type               = "adequation_environnementale",
-  superfamily        = "all",
-  ensemble_algorithm = "ca",
-  projection_time    = "ssp585"
+a <- popaPlot(
+  projRasters         = dis,
+  type                = "presence_absence",
+  superfamily         = "all",
+  ensemble_algorithm  = "wmean",
+  threshold_algorithm = "ROC",
+  projection_time     = "ssp585"
 )
-
+dev.off()
 # presence-absence | weighted mean
 pa <- dis$pa
 pawm <- Reduce(

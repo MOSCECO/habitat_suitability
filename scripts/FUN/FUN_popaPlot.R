@@ -27,12 +27,29 @@ popaPlot <- function(
         })
     })
   out <- Reduce(c, out)
+
+  out <- if (type == "presence_absence") {
+    t <- names(out[[1]][[1]]) %>% substr(nchar(.) - 2, nchar(.))
+    cat(paste(threshold_algorithm, "=", t, "\n"))
+    Sapply(
+      out,
+      \(x) subset(
+        x,
+        names(x)[
+          which(grepl(tolower(threshold_algorithm), names(x)))
+        ]
+      )
+    )
+  } else out
+
   out <- Mapply(
     \(r, nm) { names(r) <- nm ; return(r) },
     out, names(out)
   )
   out <- Reduce(c, out)
-  if (do_plot) x11(); par(mfrow = c(4, 5)); plot(out)
-  if (do_plot_combine) x11(); plot(app(out, sum)/nlyr(out))
+  if (do_plot) x11(); plot(subset(out, 1:16))
+  if (do_plot) x11(); plot(subset(out, 17:18))
+  dvd <- if (type == "adequation_environnementale") nlyr(out) else 1
+  if (do_plot_combine) x11(); plot(app(out, sum)/dvd)
   return(out)
 }
