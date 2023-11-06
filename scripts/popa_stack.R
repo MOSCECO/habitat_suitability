@@ -1,18 +1,34 @@
+# Réduction par temps de projection
+dis_reduc <- Sapply(
+  names(dis),
+  \(px) {
+    # px <- "adequation_environnementale"
+    Sapply(
+      names(dis[[px]]),
+      \(supfam) {
+        # supfam <- "Majoidea"
+        Sapply(
+          names(dis[[px]][[supfam]]),
+          \(bn) {
+            # bn <- "Amphithrax hemphilli"
+            Sapply(
+              names(dis[[px]][[supfam]][[bn]]),
+              \(ens_alg) {
+                # ens_alg <- "ca"
+                Reduce(c, dis[[px]][[supfam]][[bn]][[ens_alg]])
+              })
+          })
+      })
+  })
+
 # presence-absence | committee averaging
-pa <- dis$pa
-paca <- Reduce(
-  c,
-  lapply(
-    pa,
-    \(y) {
-      z <- y %>%
-        lapply(pluck, 1) %>%
-        unlist()
-      Reduce(c, z)
-    }
-  )
+popaPlot(
+  projRasters        = dis,
+  type               = "adequation_environnementale",
+  superfamily        = "all",
+  ensemble_algorithm = "ca",
+  projection_time    = "ssp585"
 )
-x11(); plot(app(paca, sum))
 
 # presence-absence | weighted mean
 pa <- dis$pa

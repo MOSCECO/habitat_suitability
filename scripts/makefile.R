@@ -40,3 +40,7 @@ source(here("scripts", "muricoidea_ssp126.R"))
 source(here("scripts", "muricoidea_ssp585.R"))
 source(here("scripts", "majoidea_ssp126.R"))
 source(here("scripts", "majoidea_ssp585.R"))
+
+# importation/visualisation des probabilités d'occurrences / présences-absences
+source(here("scripts", "popa_import.R"))
+source(here("scripts", "popa_stack.R"))
