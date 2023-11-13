@@ -214,12 +214,13 @@ climosaic <- Reduce(c, climosaic)
 # pa <- readRDS(
 #   here("data", "raw", "occ_threshold", "list_occ_thresh.rds")
 # )
-pa <- readRDS(
-  here("data", "raw", "occ", "list_occ_thresh_nearest.rds")
-)
-
+# pa <- readRDS(here("data", "raw", "occ", "list_occ_thresh_nearest.rds"))
 # "rasterisation" des données de présences-absences obtenues par le Muséum
-source(here("scripts", "rasterisation_pa.R"))
+# source(here("scripts", "rasterisation_pa.R"))
+# makeMyDir(here("data", "tidy", "occ"))
+# saveRDS(pa, here("data", "tidy", "occ", "list_occ_rasterized.rds"))
+pa <- readRDS(here("data", "tidy", "occ", "list_occ_rasterized.rds"))
+
 
 # Species Distribution Modeling
 # (1) Climatologies brutes

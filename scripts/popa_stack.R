@@ -1,83 +1,42 @@
 # Réduction par temps de projection
 dis_reduc <- Sapply(
-  names(dis),
+  names(mae),
   \(px) {
     # px <- "adequation_environnementale"
     Sapply(
-      names(dis[[px]]),
+      names(mae[[px]]),
       \(supfam) {
         # supfam <- "Majoidea"
         Sapply(
-          names(dis[[px]][[supfam]]),
+          names(mae[[px]][[supfam]]),
           \(bn) {
             # bn <- "Amphithrax hemphilli"
             Sapply(
-              names(dis[[px]][[supfam]][[bn]]),
+              names(mae[[px]][[supfam]][[bn]]),
               \(ens_alg) {
                 # ens_alg <- "ca"
-                Reduce(c, dis[[px]][[supfam]][[bn]][[ens_alg]])
+                Reduce(c, mae[[px]][[supfam]][[bn]][[ens_alg]])
               })
           })
       })
   })
 
-# presence-absence | committee averaging
-a <- popaPlot(
-  projRasters         = dis,
+pa_wmean_roc_current <- popaPlot(
+  projRasters         = mae,
   type                = "presence_absence",
   superfamily         = "all",
   ensemble_algorithm  = "wmean",
   threshold_algorithm = "ROC",
-  projection_time     = "ssp585"
+  projection_time     = "current"
 )
 dev.off()
-# presence-absence | weighted mean
-pa <- dis$pa
-pawm <- Reduce(
-  c,
-  lapply(
-    pa,
-    \(y) {
-      z <- y %>%
-        lapply(pluck, 2) %>%
-        unlist()
-      Reduce(c, z)
-    }
-  )
-)
-x11(); plot(app(pawm, sum))
 
-# probability of occurrences | committee averaging
-po <- dis$po
-poca <- Reduce(
-  c,
-  lapply(
-    po,
-    \(y) {
-      z <- y %>%
-        lapply(pluck, 1) %>%
-        unlist()
-      Reduce(c, z)
-    }
-  )
+ae_wmean_current <- popaPlot(
+  projRasters         = mae,
+  type                = "adequation_environnementale",
+  superfamily         = "all",
+  ensemble_algorithm  = "wmean",
+  projection_time     = "current"
 )
-x11(); plot(app(poca, sum))
+dev.off()
 
-# probability of occurrences | committee averaging
-po <- dis$po
-powm <- Reduce(
-  c,
-  lapply(
-    po,
-    \(y) {
-      z <- y %>%
-        lapply(pluck, 2) %>%
-        unlist()
-      Reduce(c, z)
-    }
-  )
-)
-x11(); plot(app(powm, sum))
-
-# all graphs
-x11(); par(mfrow = c(1,4)); plot(app(powm, sum)); plot(app(pawm, sum)); plot(app(poca, sum)); plot(app(paca, sum))

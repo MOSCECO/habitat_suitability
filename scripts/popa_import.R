@@ -1,26 +1,24 @@
-dis <- Sapply(
-  list.files(
-    here("data", "analysis", "compilation")
-  ),
+mae <- Sapply(
+  list.files(popa_path),
   \(px) {
     # px <- "adequation_environnementale"
     # px <- "presence_absence"
     out <- Sapply(
       list.files(
-        here("data", "analysis", "compilation", px)
+        here(popa_path, px)
       ),
       \(supfam) {
         # supfam <- "Majoidea"
         out <- Sapply(
           list.files(
-            here("data", "analysis", "compilation", px, supfam)
+            here(popa_path, px, supfam)
           ),
           \(spe) {
             # spe <- "Mithraculus forceps"
             print(spe)
             out <- Sapply(
               list.files(
-                here("data", "analysis", "compilation", px, supfam, spe),
+                here(popa_path, px, supfam, spe),
               ),
               \(ens_alg) {
                 # ens_alg <- "ca"
@@ -28,7 +26,7 @@ dis <- Sapply(
                 out <- Sapply(
                   list.files(
                     here(
-                      "data", "analysis", "compilation",
+                      popa_path,
                       px, supfam, spe, ens_alg
                     ),
                     full.names = T
@@ -60,7 +58,7 @@ dis <- Sapply(
                 out <- if(px == "adequation_environnementale") {
                   Reduce(c, out)
                   t <- list.files(here(
-                    "data", "analysis", "compilation",
+                    popa_path,
                     px, supfam, spe, ens_alg
                   )) %>% str_split("_") %>% unlist() %>% table()
                   names(out) <- names(t)[t == 1]
@@ -69,9 +67,9 @@ dis <- Sapply(
                   out
                 } else {
                   names(out) <- list.files(
-                    here("data", "analysis", "compilation",
+                    here(popa_path,
                          px, supfam, spe, ens_alg))
-                  out <- transpose(out)
+                  out <- purrr::transpose(out)
                   Sapply(out, \(x) Reduce(c, x))
                 }
                 return(out)

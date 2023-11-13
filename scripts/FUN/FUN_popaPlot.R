@@ -51,5 +51,11 @@ popaPlot <- function(
   if (do_plot) x11(); plot(subset(out, 17:18))
   dvd <- if (type == "adequation_environnementale") nlyr(out) else 1
   if (do_plot_combine) x11(); plot(app(out, sum)/dvd)
+
+  out <- list(
+    species = out,
+    combine = app(out, sum)/dvd
+  )
+
   return(out)
 }

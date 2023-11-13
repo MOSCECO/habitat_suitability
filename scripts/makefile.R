@@ -19,8 +19,9 @@ source(here("scripts", "violin_profondeurs_validation_modèles.R"))
 # Compilation des modèles ----
 source(here("scripts", "SDM04_compilation.R"))
 # importation/visualisation des probabilités d'occurrences / présences-absences
+popa_path <- here("data", "analysis", "compilation")
 source(here("scripts", "popa_import.R"))
-source(here("scripts", "popa_plot.R"))
+source(here("scripts", "popa_stack.R"))
 
 # Comparaison des valeurs de variable environnementales
 # du modèle avec les observations
