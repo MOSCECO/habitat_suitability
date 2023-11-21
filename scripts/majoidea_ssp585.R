@@ -12,9 +12,8 @@ biom_options <- BIOMOD_ModelingOptions(
 # Chargement rasters scénarios
 ssp <- "ssp585"
 climosaic_ssp <- here(
-  "data", "tidy", "climatologies_ipcc", paste0(ssp, ".rds")
-) %>%
-  readRDS()
+  "data", "tidy", "climatologies_ipcc", paste0(ssp, ".tif")
+) %>% rast()
 
 lapply(
   # superFamilies,
@@ -89,6 +88,13 @@ lapply(
                   summarise(cutoff = max(cutoff))
               }
             )
+
+            # suppresion d'un éventuel dossier déjà existant
+            fn <- here(
+              pth,
+              paste("proj", paste("forecast", ssp, sep = "_"), sep = "_")
+            )
+            if (file.exists(fn)) unlink(fn, recursive = T)
 
             # Projection dans un scénario ----
             proj_ipcc <- BIOMOD_EnsembleForecasting(

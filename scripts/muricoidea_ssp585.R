@@ -10,14 +10,14 @@ biom_options <- BIOMOD_ModelingOptions(
 )
 
 # Chargement rasters scénarios
-ssp <- "ssp126"
+ssp <- "ssp585"
 climosaic_ssp <- here(
   "data", "tidy", "climatologies_ipcc", paste0(ssp, ".tif")
 ) %>% rast()
 
 lapply(
   # superFamilies,
-  "Majoidea",
+  "Muricoidea",
   \(supfam) {
 
     lapply(
